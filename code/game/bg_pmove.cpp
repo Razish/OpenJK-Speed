@@ -3592,9 +3592,6 @@ int PM_GetLandingAnim( void )
 	}
 	else if ( anim == BOTH_FLIP_LAND )
 	{
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		return BOTH_LAND1;
 	}
 	else if ( PM_InAirKickingAnim( anim ) )
@@ -3625,58 +3622,34 @@ int PM_GetLandingAnim( void )
 	case BOTH_FORCEJUMPLEFT1:
 	case BOTH_FORCEINAIRLEFT1:
 		anim = BOTH_FORCELANDLEFT1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_FORCEJUMPRIGHT1:
 	case BOTH_FORCEINAIRRIGHT1:
 		anim = BOTH_FORCELANDRIGHT1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_FORCEJUMP1:
 	case BOTH_FORCEINAIR1:
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		anim = BOTH_FORCELAND1;
 		break;
 	case BOTH_FORCEJUMPBACK1:
 	case BOTH_FORCEINAIRBACK1:
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		anim = BOTH_FORCELANDBACK1;
 		break;
 	case BOTH_JUMPLEFT1:
 	case BOTH_INAIRLEFT1:
 		anim = BOTH_LANDLEFT1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_JUMPRIGHT1:
 	case BOTH_INAIRRIGHT1:
 		anim = BOTH_LANDRIGHT1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_JUMP1:
 	case BOTH_INAIR1:
 		anim = BOTH_LAND1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_JUMPBACK1:
 	case BOTH_INAIRBACK1:
 		anim = BOTH_LANDBACK1;
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	case BOTH_BUTTERFLY_LEFT:
 	case BOTH_BUTTERFLY_RIGHT:
@@ -3738,9 +3711,6 @@ int PM_GetLandingAnim( void )
 		{
 			anim = BOTH_LAND1;
 		}
-		//stick landings some
-		pm->ps->velocity[0] *= 0.5f;
-		pm->ps->velocity[1] *= 0.5f;
 		break;
 	}
 	return anim;
@@ -4074,9 +4044,6 @@ static void PM_CrashLand( void )
 				PM_SetAnim( pm, SETANIM_BOTH, anim, SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD, 100 );	// Only blend over 100ms
 				pm->ps->saberMove = LS_READY;
 				pm->ps->weaponTime = 0;
-				//stick landings some
-				pm->ps->velocity[0] *= 0.5f;
-				pm->ps->velocity[1] *= 0.5f;
 			}
 		}
 		else if ( pm->gent 
