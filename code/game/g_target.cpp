@@ -1003,6 +1003,15 @@ void set_mission_stats_cvars( void )
 extern void G_ChangeMap (const char *mapname, const char *spawntarget, qboolean hub);	//g_utils
 void target_level_change_use(gentity_t *self, gentity_t *other, gentity_t *activator)
 {
+	int msec = cg.time;
+	int secs = msec / 1000;
+	int mins = secs / 60;
+
+	secs %= 60;
+	msec %= 1000;
+
+	Com_Printf( "\n\n"S_COLOR_CYAN"SPEEDRUN: %s took "S_COLOR_YELLOW"%i:%02i.%03i\n\n", level.mapname, mins, secs, msec );
+
 	G_ActivateBehavior(self,BSET_USE);
 
 	if( self->message && !Q_stricmp( "disconnect", self->message ) )
