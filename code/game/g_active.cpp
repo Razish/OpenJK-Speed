@@ -1760,16 +1760,12 @@ void ClientTimerActions( gentity_t *ent, int msec ) {
 ClientIntermissionThink
 ====================
 */
-static qboolean ClientCinematicThink( gclient_t *client ) {
+static void ClientCinematicThink( gclient_t *client ) {
 	client->ps.eFlags &= ~EF_FIRING;
 
 	// swap button actions
 	client->oldbuttons = client->buttons;
 	client->buttons = client->usercmd.buttons;
-	if ( client->buttons & ( BUTTON_USE ) & ( client->oldbuttons ^ client->buttons ) ) {
-		return( qtrue );
-	}
-	return( qfalse );
 }
 
 
@@ -4884,22 +4880,9 @@ extern cvar_t	*g_skippingcin;
 		{
 			// watch the code here, you MUST "return" within this IF(), *unless* you're stopping the cinematic skip.
 			//
-			if ( ClientCinematicThink(ent->client) )
-			{
-				if (g_skippingcin->integer)	// already doing cinematic skip?
-				{// yes...   so stop skipping...
-					G_StopCinematicSkip();
-				}
-				else
-				{// no... so start skipping...
-					G_StartCinematicSkip();
-					return;
-				}
-			}
-			else
-			{
-				return;
-			}
+			ClientCinematicThink( ent->client );
+			G_StartCinematicSkip();
+			return;
 		}
 		// If he's riding the vehicle...
 		else if ( ent->s.m_iVehicleNum != 0 && ent->health > 0 )
