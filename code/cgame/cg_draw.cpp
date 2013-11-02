@@ -3278,20 +3278,20 @@ CG_DrawTimer
 =================
 */
 static float CG_DrawTimer( float y ) {
-	char		*s;
-	int			w;
-	int			mins, seconds, tens;
 
-	seconds = cg.time / 1000;
-	mins = seconds / 60;
-	seconds -= mins * 60;
-	tens = seconds / 10;
-	seconds -= tens * 10;
+	if ( !cg_drawTimer.integer )
+		return y;
 
-	s = va( "%i:%i%i", mins, tens, seconds );
+	int msec = cg.time;
+	int secs = msec / 1000;
+	int mins = secs / 60;
 
-	w = cgi_R_Font_StrLenPixels(s, cgs.media.qhFontMedium, 1.0f);	
-	cgi_R_Font_DrawString(635 - w, y+2, s, colorTable[CT_LTGOLD1], cgs.media.qhFontMedium, -1, 1.0f);
+	secs %= 60;
+	msec %= 1000;
+
+	char *s = va( "%i:%02i.%03i", mins, secs, msec );
+	float w = cgi_R_Font_StrLenPixels( s, cgs.media.qhFontSmall, 1.0f );
+	cgi_R_Font_DrawString( 635 - w, y + 2, s, colorTable[CT_LTGOLD1], cgs.media.qhFontSmall, -1, 1.0f );
 
 	return y + BIGCHAR_HEIGHT + 10;
 }
