@@ -1747,6 +1747,16 @@ static void CG_DrawHUD( centity_t *cent )
 		}
 //		CG_DrawMessageLit(cent,x,y);
 	}
+
+	if ( cg_drawSpeedometer.integer ) {
+		playerState_t *ps = &cg.predicted_player_state;
+		float xyspeed = sqrtf( ps->velocity[0] * ps->velocity[0] + ps->velocity[1] * ps->velocity[1] );
+		const char *s = va( "%0.3f", xyspeed );
+		float w = cgi_R_Font_StrLenPixels( s, cgs.media.qhFontSmall, 1.0f );
+		sectionXPos = (SCREEN_WIDTH/2) - (w/2);
+		cgi_R_Font_DrawString( (SCREEN_WIDTH / 2) - (w / 2), SCREEN_HEIGHT*0.666f, s, colorTable[CT_HUD_ORANGE],
+			cgs.media.qhFontSmall, -1, 1.0f );
+	}
 }
 
 /*
