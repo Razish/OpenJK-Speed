@@ -131,20 +131,20 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	case WM_CTLCOLORSTATIC:
 		if ( ( HWND ) lParam == s_wcd.hwndBuffer )
 		{
-			SetBkColor( ( HDC ) wParam, RGB( 0, 0, 0 ) );
-			SetTextColor( ( HDC ) wParam, RGB( 249, 249, 000 ) );
+			SetBkColor( (HDC)wParam, RGB( 255, 174, 201 ) );
+			SetTextColor( (HDC)wParam, RGB( 163, 73, 164 ) );
 			return ( long ) s_wcd.hbrEditBackground;
 		}
 		else if ( ( HWND ) lParam == s_wcd.hwndErrorBox )
 		{
 			if ( s_timePolarity & 1 )
 			{
-				SetBkColor(   ( HDC ) wParam, RGB( 0x80, 0x80, 0x80 ) );
+				SetBkColor( (HDC)wParam, RGB( 255, 174, 201 ) );
 				SetTextColor( ( HDC ) wParam, RGB( 0xff, 0x00, 0x00 ) );
 			}
 			else
 			{
-				SetBkColor(   ( HDC ) wParam, RGB( 0x80, 0x80, 0x80 ) );
+				SetBkColor( (HDC)wParam, RGB( 255, 174, 201 ) );
 				SetTextColor( ( HDC ) wParam, RGB( 0x00, 0x00, 0x00 ) );
 			}
 			return ( long ) s_wcd.hbrErrorBackground;
@@ -178,8 +178,8 @@ static LONG WINAPI ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 		}
 		break;
 	case WM_CREATE:
-		s_wcd.hbrEditBackground =  CreateSolidBrush( RGB( 0x00, 0x00, 0x00 ) );
-		s_wcd.hbrErrorBackground = CreateSolidBrush( RGB( 0x80, 0x80, 0x80 ) );
+		s_wcd.hbrEditBackground = CreateSolidBrush( RGB( 255, 174, 201 ) );
+		s_wcd.hbrErrorBackground = CreateSolidBrush( RGB( 255, 174, 201 ) );
 		SetTimer( hWnd, 1, 1000, NULL );
 		break;
 	case WM_ERASEBKGND:
@@ -352,7 +352,7 @@ void Sys_CreateConsole( void )
 									  CLIP_DEFAULT_PRECIS,
 									  DEFAULT_QUALITY,
 									  FF_MODERN | FIXED_PITCH,
-									  "Courier New" );
+									  "Consolas" );
 
 	ReleaseDC( s_wcd.hWnd, hDC );
 
