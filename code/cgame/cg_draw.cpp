@@ -2225,7 +2225,7 @@ static void CG_DrawPickupItem( void ) {
 	}
 }
 
-extern int cgi_EndGame(void);
+void CMD_CGCam_Disable( void );
 
 /*
 ===================
@@ -2252,7 +2252,8 @@ void CG_DrawCredits(void)
 		if ( !CG_Credits_Running() ) 
 		{
 			cgi_Cvar_Set( "cg_endcredits", "0" );
-			cgi_EndGame();
+			CMD_CGCam_Disable();
+			cgi_SendConsoleCommand("disconnect\n");
 		}
 	}
 }
