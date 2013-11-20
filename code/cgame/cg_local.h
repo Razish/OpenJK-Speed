@@ -647,6 +647,7 @@ extern	vmCvar_t		cg_smoothPlayerPlatAccel;
 
 extern	vmCvar_t		cg_smoothCamera;
 extern	vmCvar_t		cg_drawSpeedometer;
+extern	vmCvar_t		cg_drawAccelerometer;
 extern	vmCvar_t		cg_speedTrail;
 extern	vmCvar_t		cg_fovViewmodel;
 extern	vmCvar_t		cg_fovViewmodelAdjust;

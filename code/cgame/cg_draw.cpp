@@ -73,6 +73,7 @@ int cgProtectFadeTime = 0;
 float cgProtectFadeVal = 0;
 //===============================================================
 
+static int cg_fps;
 
 /*
 ================
@@ -1643,6 +1644,41 @@ static void CG_DrawBatteryCharge( void )
 	}
 }
 
+#define NUM_ACCEL_SAMPLES (8)
+void CG_DrawAccel( void ) {
+	float			accel = 0.0f, maxAccel = 0.0f, speed = 0.0f, maxSpeed = 0.0f, avgAccel = 0.0f;
+	static vec3_t	lastVelocity = { 0.0f, 0.0f, 0.0f };
+	static float	lastSpeed = 0.0f, accelSamples[NUM_ACCEL_SAMPLES] = { 0.0f };
+	vec3_t			currentVelocity;
+	playerState_t	*ps = &cg.predicted_player_state;
+	int i = 0;
+	float percent = 0.0f;
+
+	VectorCopy( ps->velocity, currentVelocity );
+	currentVelocity[2] = 0.0f;
+	speed = VectorLength( currentVelocity );
+
+	accel = speed - lastSpeed;
+
+	maxSpeed = ((ps->forcePowersActive & (1 << FP_SPEED)) ? 425 : 250);
+	maxAccel = (maxSpeed / (float)cg_fps);
+
+	//store for next frame
+	VectorCopy( currentVelocity, lastVelocity );
+	lastSpeed = speed;
+
+	memcpy( &accelSamples[0], &accelSamples[1], sizeof(float)* (NUM_ACCEL_SAMPLES - 1) );
+	accelSamples[NUM_ACCEL_SAMPLES - 1] = accel;
+
+	for ( i = 0; i<NUM_ACCEL_SAMPLES; i++ )
+		avgAccel += accelSamples[i];
+	avgAccel /= (float)NUM_ACCEL_SAMPLES;
+
+	percent = Com_Clamp( -1.0f, 1.0f, avgAccel / maxAccel );
+	if ( percent && percent < 100.0f )
+		CG_FillRect( 320.0f, 340.0f, 128.0f*percent, 20.0f, colorTable[CT_RED] );
+}
+
 /*
 ================
 CG_DrawHUD
@@ -1757,6 +1793,9 @@ static void CG_DrawHUD( centity_t *cent )
 		cgi_R_Font_DrawString( (SCREEN_WIDTH / 2) - (w / 2), SCREEN_HEIGHT*0.75f, s, colorTable[CT_HUD_ORANGE],
 			cgs.media.qhFontSmall, -1, 1.0f );
 	}
+
+	if ( cg_drawAccelerometer.integer )
+		CG_DrawAccel();
 }
 
 /*
@@ -3247,7 +3286,7 @@ static float CG_DrawFPS( float y ) {
 	static unsigned short previousTimes[FPS_FRAMES];
 	static unsigned short index;
 	static int	previous, lastupdate;
-	int		t, i, fps, total;
+	int		t, i, total;
 	unsigned short frameTime;
 	const int		xOffset = 0;
 
@@ -3270,9 +3309,12 @@ static float CG_DrawFPS( float y ) {
 	if ( !total ) {
 		total = 1;
 	}
-	fps = 1000 * FPS_FRAMES / total;
+	cg_fps = 1000 * FPS_FRAMES / total;
 
-	s = va( "%ifps", fps );
+	if ( !cg_drawFPS.integer )
+		return y;
+
+	s = va( "%ifps", cg_fps );
 	const int w = cgi_R_Font_StrLenPixels(s, cgs.media.qhFontMedium, 1.0f);	
 	cgi_R_Font_DrawString(635-xOffset - w, y+2, s, colorTable[CT_LTGOLD1], cgs.media.qhFontMedium, -1, 1.0f);
 
@@ -3856,10 +3898,10 @@ static void CG_Draw2D( void )
 	float y = 0;
 	if (cg_drawSnapshot.integer) {
 		y=CG_DrawSnapshot(y);
-	} 
-	if (cg_drawFPS.integer) {
-		y=CG_DrawFPS(y);
-	} 
+	}
+
+	y=CG_DrawFPS(y);
+
 	if (cg_drawTimer.integer) {
 		y=CG_DrawTimer(y);
 	}

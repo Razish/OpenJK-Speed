@@ -1071,7 +1071,7 @@ void CG_AddViewWeapon( playerState_t *ps )
 	}
 
 	if ( cg_fovViewmodelAdjust.integer && actualFOV > 90 )
-		fovOffset = -0.1 * ( actualFOV - 80 );
+		fovOffset = -0.1 * ( actualFOV - 90 );
 	else 
 		fovOffset = 0;
 
@@ -1120,7 +1120,6 @@ void CG_AddViewWeapon( playerState_t *ps )
 	//VectorMA( hand.origin, (0+fovOffset), cg.refdef.viewaxis[2], hand.origin );
 
 	AnglesToAxis( angles, hand.axis );
-
 
 	if ( cg_fovViewmodel.integer ) {
 		float fracDistFOV = tanf( cg.refdef.fov_x * ( M_PI/180 ) * 0.5f );
