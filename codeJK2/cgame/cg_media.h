@@ -19,7 +19,7 @@ This file is part of Jedi Knight 2.
 #ifndef __CG_MEDIA_H_
 #define __CG_MEDIA_H_
 
-#define	NUM_CROSSHAIRS		10
+#define	NUM_CROSSHAIRS		9
 
 typedef enum {
 	FOOTSTEP_NORMAL,
@@ -51,7 +51,7 @@ extern forceTicPos_t ammoTicPos[];
 
 #define NUM_CHUNK_MODELS	4
 
-typedef enum 
+enum 
 {
 	CHUNK_METAL1 = 0,
 	CHUNK_METAL2,

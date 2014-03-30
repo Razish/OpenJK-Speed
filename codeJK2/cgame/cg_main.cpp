@@ -15,12 +15,7 @@ This file is part of Jedi Knight 2.
     along with Jedi Knight 2.  If not, see <http://www.gnu.org/licenses/>.
 */
 // Copyright 2001-2013 Raven Software
-
-// this line must stay at top so the whole PCH thing works...
-#include "cg_headers.h"
-//#include "../ui/ui_shared.h"
-
-//#include "cg_local.h"
+#include "cg_local.h"
 #include "cg_media.h"
 #include "FxScheduler.h"
 
@@ -64,7 +59,7 @@ Ghoul2 Insert End
 
 void CG_LoadHudMenu(void);
 int inv_icons[INV_MAX];
-char *inv_names[] =
+const char *inv_names[] =
 {
 "ELECTROBINOCULARS",
 "BACTA CANISTER",
@@ -269,9 +264,12 @@ vmCvar_t	cg_gun_frame;
 vmCvar_t	cg_gun_x;
 vmCvar_t	cg_gun_y;
 vmCvar_t	cg_gun_z;
+vmCvar_t	cg_fovViewmodel;
+vmCvar_t	cg_fovViewmodelAdjust;
 vmCvar_t	cg_autoswitch;
 vmCvar_t	cg_simpleItems;
 vmCvar_t	cg_fov;
+vmCvar_t	cg_fovAspectAdjust;
 vmCvar_t	cg_missionstatusscreen;
 vmCvar_t	cg_endcredits;
 vmCvar_t	cg_updatedDataPadForcePower1;
@@ -328,15 +326,16 @@ vmCvar_t	cg_smoothPlayerPlatAccel;
 
 typedef struct {
 	vmCvar_t	*vmCvar;
-	char		*cvarName;
-	char		*defaultString;
+	const char	*cvarName;
+	const char	*defaultString;
 	int			cvarFlags;
 } cvarTable_t;
 
-cvarTable_t		cvarTable[] = {
+static cvarTable_t cvarTable[] = {
 	{ &cg_autoswitch, "cg_autoswitch", "1", CVAR_ARCHIVE },
 	{ &cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE },
-	{ &cg_fov, "cg_fov", "80", 0 },//must be 80
+	{ &cg_fov, "cg_fov", "80", CVAR_ARCHIVE },
+	{ &cg_fovAspectAdjust, "cg_fovAspectAdjust", "0", CVAR_ARCHIVE },
 	{ &cg_stereoSeparation, "cg_stereoSeparation", "0.4", CVAR_ARCHIVE  },
 	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE  },
 
@@ -350,7 +349,7 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_drawCrosshair, "cg_drawCrosshair", "1", CVAR_ARCHIVE },
 	{ &cg_dynamicCrosshair, "cg_dynamicCrosshair", "1", CVAR_ARCHIVE },
 	{ &cg_crosshairIdentifyTarget, "cg_crosshairIdentifyTarget", "1", CVAR_ARCHIVE },
-	{ &cg_crosshairForceHint, "cg_crosshairForceHint", "1", CVAR_ARCHIVE },
+	{ &cg_crosshairForceHint, "cg_crosshairForceHint", "1", CVAR_ARCHIVE|CVAR_SAVEGAME|CVAR_NORESTART },
 	{ &cg_missionstatusscreen, "cg_missionstatusscreen", "0", CVAR_ROM},
 	{ &cg_endcredits, "cg_endcredits", "0", 0},
 	{ &cg_updatedDataPadForcePower1, "cg_updatedDataPadForcePower1", "0", 0},
@@ -369,6 +368,8 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_gun_y, "cg_gunY", "0", CVAR_CHEAT },
 	{ &cg_gun_z, "cg_gunZ", "0", CVAR_CHEAT },
 	{ &cg_centertime, "cg_centertime", "3", CVAR_CHEAT },
+	{ &cg_fovViewmodel, "cg_fovViewModel", "0", CVAR_ARCHIVE },
+	{ &cg_fovViewmodelAdjust, "cg_fovViewmodelAdjust", "1", CVAR_ARCHIVE },
 
 	{ &cg_runpitch, "cg_runpitch", "0.002", CVAR_ARCHIVE},
 	{ &cg_runroll, "cg_runroll", "0.005", CVAR_ARCHIVE },
@@ -386,8 +387,8 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_noPlayerAnims, "cg_noplayeranims", "0", CVAR_CHEAT },
 	{ &cg_footsteps, "cg_footsteps", "1", CVAR_CHEAT },
 
-	{ &cg_thirdPerson, "cg_thirdPerson", "0", CVAR_USERINFO },
-	{ &cg_thirdPersonRange, "cg_thirdPersonRange", "80", 0 },
+	{ &cg_thirdPerson, "cg_thirdPerson", "0", CVAR_SAVEGAME },
+	{ &cg_thirdPersonRange, "cg_thirdPersonRange", "80", CVAR_ARCHIVE },
 	{ &cg_thirdPersonMaxRange, "cg_thirdPersonMaxRange", "150", 0 },
 	{ &cg_thirdPersonAngle, "cg_thirdPersonAngle", "0", 0 },
 	{ &cg_thirdPersonPitchOffset, "cg_thirdPersonPitchOffset", "0", 0 },
@@ -433,7 +434,7 @@ Ghoul2 Insert End
 	{ &cg_smoothPlayerPlatAccel, "cg_smoothPlayerPlatAccel", "3.25", 0},
 };
 
-int		cvarTableSize = sizeof( cvarTable ) / sizeof( cvarTable[0] );
+static const size_t cvarTableSize = ARRAY_LEN( cvarTable );
 
 /*
 =================
@@ -441,12 +442,11 @@ CG_RegisterCvars
 =================
 */
 void CG_RegisterCvars( void ) {
-	int			i;
+	size_t		i;
 	cvarTable_t	*cv;
 
-	for ( i = 0, cv = cvarTable ; i < cvarTableSize ; i++, cv++ ) {
-		cgi_Cvar_Register( cv->vmCvar, cv->cvarName,
-			cv->defaultString, cv->cvarFlags );
+	for ( i=0, cv=cvarTable; i<cvarTableSize; i++, cv++ ) {
+		cgi_Cvar_Register( cv->vmCvar, cv->cvarName, cv->defaultString, cv->cvarFlags );
 	}
 }
 
@@ -456,14 +456,15 @@ CG_UpdateCvars
 =================
 */
 void CG_UpdateCvars( void ) {
-	int			i;
+	size_t		i;
 	cvarTable_t	*cv;
 
-	for ( i = 0, cv = cvarTable ; i < cvarTableSize ; i++, cv++ ) {
-		cgi_Cvar_Update( cv->vmCvar );
+	for ( i=0, cv=cvarTable; i<cvarTableSize; i++, cv++ ) {
+		if ( cv->vmCvar ) {
+			cgi_Cvar_Update( cv->vmCvar );
+		}
 	}
 }
-
 
 int CG_CrosshairPlayer( void ) 
 {
@@ -518,27 +519,12 @@ int CG_GetCameraPos( vec3_t camerapos ) {
 	return 0;
 }
 
-void CG_TargetCommand_f( void ) {
-	int		targetNum;
-	char	test[4];
-
-	targetNum = CG_CrosshairPlayer();
-	if (targetNum <= 0) {
-		return;
-	}
-
-	cgi_Argv( 1, test, 4 );	//FIXME: this is now an exec_now command - in case we start using it... JFM
-	cgi_SendConsoleCommand( va( "gc %i %i", targetNum, atoi( test ) ) );
-}
-
-
-
 void CG_Printf( const char *msg, ... ) {
 	va_list		argptr;
 	char		text[1024];
 
 	va_start (argptr, msg);
-	vsprintf (text, msg, argptr);
+	Q_vsnprintf (text, sizeof(text), msg, argptr);
 	va_end (argptr);
 
 	cgi_Printf( text );
@@ -549,7 +535,7 @@ void CG_Error( const char *msg, ... ) {
 	char		text[1024];
 
 	va_start (argptr, msg);
-	vsprintf (text, msg, argptr);
+	Q_vsnprintf (text, sizeof(text), msg, argptr);
 	va_end (argptr);
 
 	cgi_Error( text );
@@ -739,7 +725,8 @@ static void CG_RegisterSounds( void ) {
 
 	// only register the items that the server says we need
 	char	items[MAX_ITEMS+1];
-	strcpy( items, CG_ConfigString( CS_ITEMS ) );
+	//Raz: Fixed buffer overflow
+	Q_strncpyz(items, CG_ConfigString(CS_ITEMS), sizeof(items));
 
 	for ( i = 1 ; i < bg_numItems ; i++ ) {
 		if ( items[ i ] == '1' )	//even with sound pooling, don't clutter it for low end machines
@@ -1119,41 +1106,40 @@ void CG_RegisterClientModels (int entityNum)
 
 forceTicPos_t forceTicPos[] = 
 {
+ 11,  41,  20,  10,	"gfx/hud/force_tick1", NULL_HANDLE,		// Left Top
+ 12,  45,  20,  10, "gfx/hud/force_tick2", NULL_HANDLE,
+ 14,  49,  20,  10, "gfx/hud/force_tick3", NULL_HANDLE,
+ 17,  52,  20,  10, "gfx/hud/force_tick4", NULL_HANDLE,
+ 22,  55,  10,  10, "gfx/hud/force_tick5", NULL_HANDLE,
+ 28,  57,  10,  20, "gfx/hud/force_tick6", NULL_HANDLE,
+ 34,  59,  10,  10,	"gfx/hud/force_tick7", NULL_HANDLE,		// Left bottom
 
- 11,  41,  20,  10,	"gfx/hud/force_tick1", NULL,		// Left Top
- 12,  45,  20,  10, "gfx/hud/force_tick2", NULL,
- 14,  49,  20,  10, "gfx/hud/force_tick3", NULL,
- 17,  52,  20,  10, "gfx/hud/force_tick4", NULL,
- 22,  55,  10,  10, "gfx/hud/force_tick5", NULL,
- 28,  57,  10,  20, "gfx/hud/force_tick6", NULL,
- 34,  59,  10,  10,	"gfx/hud/force_tick7", NULL,		// Left bottom
-
- 46,  59, -10,  10, "gfx/hud/force_tick7", NULL,		// Right bottom
- 52,  57, -10,  20, "gfx/hud/force_tick6", NULL,
- 58,  55, -10,  10, "gfx/hud/force_tick5", NULL,
- 63,  52, -20,  10, "gfx/hud/force_tick4", NULL,
- 66,  49, -20,  10, "gfx/hud/force_tick3", NULL,
- 68,  45, -20,  10, "gfx/hud/force_tick2", NULL,
- 69,  41, -20,  10,	"gfx/hud/force_tick1", NULL,		// Right top
+ 46,  59, -10,  10, "gfx/hud/force_tick7", NULL_HANDLE,		// Right bottom
+ 52,  57, -10,  20, "gfx/hud/force_tick6", NULL_HANDLE,
+ 58,  55, -10,  10, "gfx/hud/force_tick5", NULL_HANDLE,
+ 63,  52, -20,  10, "gfx/hud/force_tick4", NULL_HANDLE,
+ 66,  49, -20,  10, "gfx/hud/force_tick3", NULL_HANDLE,
+ 68,  45, -20,  10, "gfx/hud/force_tick2", NULL_HANDLE,
+ 69,  41, -20,  10,	"gfx/hud/force_tick1", NULL_HANDLE,		// Right top
 };
 
 forceTicPos_t ammoTicPos[] = 
 {
- 12,  34,  10,  10, "gfx/hud/ammo_tick7-l", NULL, 	// Bottom
- 13,  28,  10,  10, "gfx/hud/ammo_tick6-l", NULL,
- 15,  23,  10,  10, "gfx/hud/ammo_tick5-l", NULL,
- 19,  19,  10,  10, "gfx/hud/ammo_tick4-l", NULL,
- 23,  15,  10,  10, "gfx/hud/ammo_tick3-l", NULL,
- 29,  12,  10,  10, "gfx/hud/ammo_tick2-l", NULL,
- 34,  11,  10,  10, "gfx/hud/ammo_tick1-l", NULL,
+ 12,  34,  10,  10, "gfx/hud/ammo_tick7-l", NULL_HANDLE, 	// Bottom
+ 13,  28,  10,  10, "gfx/hud/ammo_tick6-l", NULL_HANDLE,
+ 15,  23,  10,  10, "gfx/hud/ammo_tick5-l", NULL_HANDLE,
+ 19,  19,  10,  10, "gfx/hud/ammo_tick4-l", NULL_HANDLE,
+ 23,  15,  10,  10, "gfx/hud/ammo_tick3-l", NULL_HANDLE,
+ 29,  12,  10,  10, "gfx/hud/ammo_tick2-l", NULL_HANDLE,
+ 34,  11,  10,  10, "gfx/hud/ammo_tick1-l", NULL_HANDLE,
 
- 47,  11, -10,  10, "gfx/hud/ammo_tick1-r", NULL,
- 52,  12, -10,  10, "gfx/hud/ammo_tick2-r", NULL,
- 58,  15, -10,  10, "gfx/hud/ammo_tick3-r", NULL,
- 62,  19, -10,  10, "gfx/hud/ammo_tick4-r", NULL,
- 66,  23, -10,  10, "gfx/hud/ammo_tick5-r", NULL,
- 68,  28, -10,  10, "gfx/hud/ammo_tick6-r", NULL,
- 69,  34, -10,  10, "gfx/hud/ammo_tick7-r", NULL,
+ 47,  11, -10,  10, "gfx/hud/ammo_tick1-r", NULL_HANDLE,
+ 52,  12, -10,  10, "gfx/hud/ammo_tick2-r", NULL_HANDLE,
+ 58,  15, -10,  10, "gfx/hud/ammo_tick3-r", NULL_HANDLE,
+ 62,  19, -10,  10, "gfx/hud/ammo_tick4-r", NULL_HANDLE,
+ 66,  23, -10,  10, "gfx/hud/ammo_tick5-r", NULL_HANDLE,
+ 68,  28, -10,  10, "gfx/hud/ammo_tick6-r", NULL_HANDLE,
+ 69,  34, -10,  10, "gfx/hud/ammo_tick7-r", NULL_HANDLE,
 };
 
 
@@ -1339,7 +1325,7 @@ static void CG_RegisterGraphics( void ) {
 	memset( cg_weapons, 0, sizeof( cg_weapons ) );
 
 	// only register the items that the server says we need
-	strcpy( items, CG_ConfigString( CS_ITEMS) );
+	Q_strncpyz( items, CG_ConfigString( CS_ITEMS ), sizeof(items) );
 
 	for ( i = 1 ; i < bg_numItems ; i++ ) {
 		if ( items[ i ] == '1' ) 
@@ -1648,14 +1634,14 @@ Ghoul2 Insert End
 
 void CG_WriteTheEvilCGHackStuff(void)
 {
-	gi.AppendToSaveGame('FPSL', &cg.forcepowerSelect, sizeof(cg.forcepowerSelect));
-	gi.AppendToSaveGame('IVSL', &cg.inventorySelect,  sizeof(cg.inventorySelect));
+	gi.AppendToSaveGame(INT_ID('F','P','S','L'), &cg.forcepowerSelect, sizeof(cg.forcepowerSelect));
+	gi.AppendToSaveGame(INT_ID('I','V','S','L'), &cg.inventorySelect,  sizeof(cg.inventorySelect));
 
 }
 void CG_ReadTheEvilCGHackStuff(void)
 {
-	gi.ReadFromSaveGame('FPSL', (void *)&gi_cg_forcepowerSelect, sizeof(gi_cg_forcepowerSelect), NULL);
-	gi.ReadFromSaveGame('IVSL', (void *)&gi_cg_inventorySelect,  sizeof(gi_cg_inventorySelect), NULL);
+	gi.ReadFromSaveGame(INT_ID('F','P','S','L'), (void *)&gi_cg_forcepowerSelect, sizeof(gi_cg_forcepowerSelect), NULL);
+	gi.ReadFromSaveGame(INT_ID('I','V','S','L'), (void *)&gi_cg_inventorySelect,  sizeof(gi_cg_inventorySelect), NULL);
 	gbUseTheseValuesFromLoadSave = qtrue;
 }
 
@@ -1767,20 +1753,6 @@ void CG_Init( int serverCommandSequence ) {
 	CG_GameStateReceived();
 
 	CG_InitConsoleCommands();
-
-	//
-	// the game server will interpret these commands, which will be automatically
-	// forwarded to the server after they are not recognized locally
-	//
-	cgi_AddCommand ("kill");
-	cgi_AddCommand ("give");
-	cgi_AddCommand ("god");
-	cgi_AddCommand ("notarget");
-	cgi_AddCommand ("noclip");
-	cgi_AddCommand ("undying");
-	cgi_AddCommand ("setviewpos");
-	cgi_AddCommand ("setobjective");
-	cgi_AddCommand ("viewobjective");
 
 	cg.missionInfoFlashTime = 0;
 	cg.missionStatusShow = qfalse;
@@ -2221,13 +2193,13 @@ void CG_ParseMenu(const char *menuFile)
 	int				result;
 	char			*buf,*p;
 
-	Com_Printf("Parsing menu file:%s\n", menuFile);
+	Com_Printf("Parsing menu file: %s\n", menuFile);
 
 	result = cgi_UI_StartParseSession((char *) menuFile,&buf);
 
 	if (!result)
 	{
-		Com_Printf("Unable to load hud menu file:%s. Using default ui/testhud.menu.\n", menuFile);
+		Com_Printf("Unable to load hud menu file: %s. Using default ui/testhud.menu.\n", menuFile);
 		result = cgi_UI_StartParseSession("ui/testhud.menu",&buf);
 		if (!result)
 		{
@@ -3642,6 +3614,7 @@ CG_DrawDataPadForceSelect
 */
 void CG_DrawDataPadForceSelect( void ) 
 {
+  	gentity_t	*player = &g_entities[0];
 	int		i;
 	int		count;
 	int		smallIconSize,bigIconSize;

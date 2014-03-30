@@ -138,29 +138,9 @@ int R_CullPointAndRadius( const vec3_t pt, float radius )
 	}
 
 	// check against frustum planes
-#ifndef __NO_JK2
-	if( com_jk2 && com_jk2->integer )
-	{
-		// They used 4 frustrum planes in JK2, and 5 in JKA --eez
-		for (i = 0 ; i < 4 ; i++) 
-		{
-			frust = &tr.viewParms.frustum[i];
-
-			dist = DotProduct( pt, frust->normal) - frust->dist;
-			if ( dist < -radius )
-			{
-				return CULL_OUT;
-			}
-			else if ( dist <= radius ) 
-			{
-				mightBeClipped = qtrue;
-			}
-		}
-	}
-	else
-	{
-#endif
-	for (i = 0 ; i < 5 ; i++) 
+#ifdef JK2_MODE
+	// They used 4 frustrum planes in JK2, and 5 in JKA --eez
+	for (i = 0 ; i < 4 ; i++) 
 	{
 		frust = &tr.viewParms.frustum[i];
 
@@ -174,7 +154,20 @@ int R_CullPointAndRadius( const vec3_t pt, float radius )
 			mightBeClipped = qtrue;
 		}
 	}
-#ifndef __NO_JK2
+#else
+	for (i = 0 ; i < 5 ; i++) 
+	{
+		frust = &tr.viewParms.frustum[i];
+
+		dist = DotProduct( pt, frust->normal) - frust->dist;
+		if ( dist < -radius )
+		{
+			return CULL_OUT;
+		}
+		else if ( dist <= radius ) 
+		{
+			mightBeClipped = qtrue;
+		}
 	}
 #endif
 
@@ -731,7 +724,7 @@ qboolean R_GetPortalOrientations( drawSurf_t *drawSurf, int entityNum,
 	R_PlaneForSurface( drawSurf->surface, &originalPlane );
 
 	// rotate the plane if necessary
-	if ( entityNum != TR_WORLDENT ) {
+	if ( entityNum != REFENTITYNUM_WORLD ) {
 		tr.currentEntityNum = entityNum;
 		tr.currentEntity = &tr.refdef.entities[entityNum];
 
@@ -839,7 +832,7 @@ static qboolean IsMirror( const drawSurf_t *drawSurf, int entityNum )
 	R_PlaneForSurface( drawSurf->surface, &originalPlane );
 
 	// rotate the plane if necessary
-	if ( entityNum != TR_WORLDENT ) 
+	if ( entityNum != REFENTITYNUM_WORLD ) 
 	{
 		tr.currentEntityNum = entityNum;
 		tr.currentEntity = &tr.refdef.entities[entityNum];
@@ -1200,7 +1193,7 @@ void R_DecomposeSort( unsigned sort, int *entityNum, shader_t **shader,
 					 int *fogNum, int *dlightMap ) {
 	*fogNum = ( sort >> QSORT_FOGNUM_SHIFT ) & 31;
 	*shader = tr.sortedShaders[ ( sort >> QSORT_SHADERNUM_SHIFT ) & (MAX_SHADERS-1) ];
-	*entityNum = ( sort >> QSORT_ENTITYNUM_SHIFT ) & (MAX_ENTITIES-1);
+	*entityNum = ( sort >> QSORT_REFENTITYNUM_SHIFT ) & REFENTITYNUM_MASK;
 	*dlightMap = sort & 3;
 }
 
@@ -1280,7 +1273,7 @@ void R_AddEntitySurfaces (void) {
 		ent->needDlights = qfalse;
 
 		// preshift the value we are going to OR into the drawsurf sort
-		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_ENTITYNUM_SHIFT;
+		tr.shiftedEntityNum = tr.currentEntityNum << QSORT_REFENTITYNUM_SHIFT;
 
 		if ((ent->e.renderfx & RF_ALPHA_FADE))
 		{

@@ -18,7 +18,7 @@
 #define	MASK_QUED_EVENTS	( MAX_QUED_EVENTS - 1 )
 
 qboolean stdin_active = qtrue;
-qboolean stdinIsATTY;
+qboolean stdinIsATTY = qfalse;
 
 // Used to determine where to store user-specific files
 static char homePath[ MAX_OSPATH ] = { 0 };
@@ -51,7 +51,7 @@ int Sys_Milliseconds (bool baseTime)
 	}
 
 	curtime = (tp.tv_sec - sys_timeBase)*1000 + tp.tv_usec/1000;
-    
+
     static int sys_timeBase = curtime;
 	if (!baseTime)
 	{
@@ -139,7 +139,7 @@ void Sys_BeginProfiling( void ) {
 char *Sys_GetCurrentUser( void )
 {
 	struct passwd *p;
-    
+
 	if ( (p = getpwuid( getuid() )) == NULL ) {
 		return "player";
 	}
@@ -528,38 +528,65 @@ void Sys_SetDefaultHomePath(const char *path)
 }
 
 /*
- ==================
- Sys_DefaultHomePath
- ==================
- */
+==================
+Sys_DefaultHomePath
+==================
+*/
+#ifdef MACOS_X
 char *Sys_DefaultHomePath(void)
 {
 	char *p;
-    
+
 	if( !*homePath && com_homepath != NULL )
 	{
 		if( ( p = getenv( "HOME" ) ) != NULL )
 		{
 			Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
-#ifdef MACOS_X
 			Q_strcat(homePath, sizeof(homePath),
                      "Library/Application Support/");
-            
+
 			if(com_homepath->string[0])
 				Q_strcat(homePath, sizeof(homePath), com_homepath->string);
 			else
 				Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_MACOSX);
+		}
+	}
+
+	return homePath;
+}
 #else
+char *Sys_DefaultHomePath(void)
+{
+	char *p;
+
+	if( !*homePath && com_homepath != NULL )
+	{
+		if( ( p = getenv( "XDG_DATA_HOME" ) ) != NULL )
+		{
+			Com_sprintf(homePath, sizeof(homePath), "%s%c", p, PATH_SEP);
 			if(com_homepath->string[0])
 				Q_strcat(homePath, sizeof(homePath), com_homepath->string);
 			else
 				Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_UNIX);
-#endif
+
+			return homePath;
+		}
+
+		if( ( p = getenv( "HOME" ) ) != NULL )
+		{
+			Com_sprintf(homePath, sizeof(homePath), "%s%c.local%cshare%c", p, PATH_SEP, PATH_SEP, PATH_SEP);
+			if(com_homepath->string[0])
+				Q_strcat(homePath, sizeof(homePath), com_homepath->string);
+			else
+				Q_strcat(homePath, sizeof(homePath), HOMEPATH_NAME_UNIX);
+
+			return homePath;
 		}
 	}
-    
+
 	return homePath;
 }
+#endif
 
 char *Sys_ConsoleInput(void)
 {

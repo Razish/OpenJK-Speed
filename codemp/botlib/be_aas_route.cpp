@@ -5,7 +5,7 @@
  * desc:		AAS
  *
  * $Archive: /MissionPack/code/botlib/be_aas_route.c $
- * $Author: Mrelusive $ 
+ * $Author: Mrelusive $
  * $Revision: 18 $
  * $Modtime: 12/01/00 1:11p $
  * $Date: 12/01/00 1:11p $
@@ -915,9 +915,6 @@ typedef struct routecacheheader_s
 
 #define RCID						(('C'<<24)+('R'<<16)+('E'<<8)+'M')
 #define RCVERSION					2
-
-//void AAS_DecompressVis(byte *in, int numareas, byte *decompressed);
-//int AAS_CompressVis(byte *vis, int numareas, byte *dest);
 
 void AAS_WriteRouteCache(void)
 {

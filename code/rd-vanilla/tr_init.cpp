@@ -27,7 +27,6 @@ This file is part of Jedi Academy.
 #include "tr_local.h"
 #include "../rd-common/tr_common.h"
 #include "tr_stl.h"
-#include "tr_jpeg_interface.h"
 #include "../rd-common/tr_font.h"
 #include "tr_WorldEffects.h"
 
@@ -38,8 +37,6 @@ static void GfxInfo_f( void );
 
 void R_TerrainInit(void);
 void R_TerrainShutdown(void);
-
-cvar_t	*com_jk2;
 
 cvar_t	*r_verbose;
 cvar_t	*r_ignore;
@@ -204,12 +201,14 @@ cvar_t	*broadsword_dircap=0;
 cvar_t	*sv_mapname;
 cvar_t	*sv_mapChecksum;
 cvar_t	*se_language;			// JKA
-#ifndef __NO_JK2
+#ifdef JK2_MODE
 cvar_t	*sp_language;			// JK2
 #endif
 cvar_t	*com_buildScript;
 
 cvar_t	*r_environmentMapping;
+cvar_t *r_screenshotJpegQuality;
+
 
 /*
 Ghoul2 Insert End
@@ -351,7 +350,9 @@ static void InitOpenGL( void )
 		// print info the first time only
 		// set default state
 		GL_SetDefaultState();
+#ifndef JK2_MODE
 		R_Splash();	//get something on screen asap
+#endif
 		GfxInfo_f();
 	}
 	else
@@ -470,73 +471,149 @@ static void R_ModeList_f( void )
 	ri.Printf( PRINT_ALL, "\n" );
 }
 
-/* 
-============================================================================== 
- 
-						SCREEN SHOTS 
- 
-============================================================================== 
-*/ 
+/*
+==============================================================================
 
-/* 
+						SCREEN SHOTS
+
+==============================================================================
+*/
+
+/*
+==================
+
+RB_ReadPixels
+
+Reads an image but takes care of alignment issues for reading RGB images.
+
+Reads a minimum offset for where the RGB data starts in the image from
+integer stored at pointer offset. When the function has returned the actual
+offset was written back to address offset. This address will always have an
+alignment of packAlign to ensure efficient copying.
+
+Stores the length of padding after a line of pixels to address padlen
+
+Return value must be freed with Hunk_FreeTempMemory()
+==================
+*/
+
+byte *RB_ReadPixels(int x, int y, int width, int height, size_t *offset, int *padlen)
+{
+	byte *buffer, *bufstart;
+	int padwidth, linelen;
+	GLint packAlign;
+
+	qglGetIntegerv(GL_PACK_ALIGNMENT, &packAlign);
+
+	linelen = width * 3;
+	padwidth = PAD(linelen, packAlign);
+
+	// Allocate a few more bytes so that we can choose an alignment we like
+	buffer = (byte *)ri.Z_Malloc(padwidth * height + *offset + packAlign - 1, TAG_TEMP_WORKSPACE, qfalse, 4);
+
+	bufstart = (byte *)PADP((intptr_t) buffer + *offset, packAlign);
+	qglReadPixels(x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, bufstart);
+
+	*offset = bufstart - buffer;
+	*padlen = padwidth - linelen;
+
+	return buffer;
+}
+
+/*
 ================== 
 R_TakeScreenshot
 ================== 
-*/  
-// "filename" param is something like "screenshots/shot0000.tga"
-//	note that if the last extension is ".jpg", then it'll save a JPG, else TGA
-//
+*/
 void R_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
-	byte		*buffer;
-	int			i, c, temp;
+	byte *allbuf, *buffer;
+	byte *srcptr, *destptr;
+	byte *endline, *endmem;
+	byte temp;
 
-	qboolean bSaveAsJPG = !Q_stricmpn(&fileName[strlen(fileName)-4],".jpg",4);
+	int linelen, padlen;
+	size_t offset = 18, memcount;
 
-	if (bSaveAsJPG)
+	allbuf = RB_ReadPixels(x, y, width, height, &offset, &padlen);
+	buffer = allbuf + offset - 18;
+
+	Com_Memset (buffer, 0, 18);
+	buffer[2] = 2;		// uncompressed type
+	buffer[12] = width & 255;
+	buffer[13] = width >> 8;
+	buffer[14] = height & 255;
+	buffer[15] = height >> 8;
+	buffer[16] = 24;	// pixel size
+
+	// swap rgb to bgr and remove padding from line endings
+	linelen = width * 3;
+
+	srcptr = destptr = allbuf + offset;
+	endmem = srcptr + (linelen + padlen) * height;
+
+	while(srcptr < endmem)
 	{
-		// JPG saver expects to be fed RGBA data, though it presumably ignores 'A'...
-		//
-		buffer = (unsigned char *) ri.Z_Malloc(glConfig.vidWidth*glConfig.vidHeight*4, TAG_TEMP_WORKSPACE, qfalse, 4);
-		qglReadPixels( x, y, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer ); 
+		endline = srcptr + linelen;
 
-		// gamma correct
-		if ( tr.overbrightBits>0 && glConfig.deviceSupportsGamma ) {
-			R_GammaCorrect( buffer, glConfig.vidWidth * glConfig.vidHeight * 4 );
+		while(srcptr < endline)
+		{
+			temp = srcptr[0];
+			*destptr++ = srcptr[2];
+			*destptr++ = srcptr[1];
+			*destptr++ = temp;
+
+			srcptr += 3;
 		}
 
-		SaveJPG(fileName, 95, width, height, buffer);
+		// Skip the pad
+		srcptr += padlen;
 	}
-	else
-	{
-		// TGA...
-		//
-		buffer = (unsigned char *) ri.Z_Malloc(glConfig.vidWidth*glConfig.vidHeight*3 + 18, TAG_TEMP_WORKSPACE, qfalse, 4);
-		memset (buffer, 0, 18);
-		buffer[2] = 2;		// uncompressed type
-		buffer[12] = width & 255;
-		buffer[13] = width >> 8;
-		buffer[14] = height & 255;
-		buffer[15] = height >> 8;
-		buffer[16] = 24;	// pixel size
 
-		qglReadPixels( x, y, width, height, GL_RGB, GL_UNSIGNED_BYTE, buffer+18 ); 
+	memcount = linelen * height;
 
-		// swap rgb to bgr
-		c = 18 + width * height * 3;
-		for (i=18 ; i<c ; i+=3) {
-			temp = buffer[i];
-			buffer[i] = buffer[i+2];
-			buffer[i+2] = temp;
-		}
+	// gamma correct
+	if(glConfig.deviceSupportsGamma)
+		R_GammaCorrect(allbuf + offset, memcount);
 
-		// gamma correct
-		if ( tr.overbrightBits>0 && glConfig.deviceSupportsGamma ) {
-			R_GammaCorrect( buffer + 18, glConfig.vidWidth * glConfig.vidHeight * 3 );
-		}
-		ri.FS_WriteFile( fileName, buffer, c );
-	}
-	
-	Z_Free( buffer );
+	ri.FS_WriteFile(fileName, buffer, memcount + 18);
+
+	ri.Z_Free(allbuf);
+}
+
+/* 
+================== 
+R_TakeScreenshotPNG
+================== 
+*/  
+void R_TakeScreenshotPNG( int x, int y, int width, int height, char *fileName ) {
+	byte *buffer=NULL;
+	size_t offset=0;
+	int padlen=0;
+
+	buffer = RB_ReadPixels( x, y, width, height, &offset, &padlen );
+	RE_SavePNG( fileName, buffer, width, height, 3 );
+	ri.Z_Free( buffer );
+}
+
+/* 
+================== 
+R_TakeScreenshotJPEG
+================== 
+*/  
+void R_TakeScreenshotJPEG( int x, int y, int width, int height, char *fileName ) {
+	byte *buffer;
+	size_t offset = 0, memcount;
+	int padlen;
+
+	buffer = RB_ReadPixels(x, y, width, height, &offset, &padlen);
+	memcount = (width * 3 + padlen) * height;
+
+	// gamma correct
+	if(glConfig.deviceSupportsGamma)
+		R_GammaCorrect(buffer + offset, memcount);
+
+	RE_SaveJPG(fileName, r_screenshotJpegQuality->integer, width, height, buffer + offset, padlen);
+	ri.Z_Free(buffer);
 }
 
 /* 
@@ -544,14 +621,14 @@ void R_TakeScreenshot( int x, int y, int width, int height, char *fileName ) {
 R_ScreenshotFilename
 ================== 
 */  
-void R_ScreenshotFilename( int lastNumber, char *fileName, const char *psExt ) {
+void R_ScreenshotFilename( char *buf, int bufSize, const char *ext ) {
 	time_t rawtime;
 	char timeStr[32] = {0}; // should really only reach ~19 chars
 
 	time( &rawtime );
 	strftime( timeStr, sizeof( timeStr ), "%Y-%m-%d_%H-%M-%S", localtime( &rawtime ) ); // or gmtime
 
-	Com_sprintf( fileName, MAX_QPATH, "screenshots/shot%s%s", timeStr, psExt );
+	Com_sprintf( buf, bufSize, "screenshots/shot%s%s", timeStr, ext );
 }
 
 /*
@@ -563,30 +640,31 @@ the menu system, sampled down from full screen distorted images
 ====================
 */
 #define LEVELSHOTSIZE 256
-void R_LevelShot( void ) {
+static void R_LevelShot( void ) {
 	char		checkname[MAX_OSPATH];
 	byte		*buffer;
-	byte		*source;
+	byte		*source, *allsource;
 	byte		*src, *dst;
+	size_t		offset = 0;
+	int			padlen;
 	int			x, y;
 	int			r, g, b;
 	float		xScale, yScale;
 	int			xx, yy;
 
-	sprintf( checkname, "levelshots/%s.tga", tr.worldDir + strlen("maps/") );
+	Com_sprintf( checkname, sizeof(checkname), "levelshots/%s.tga", tr.world->baseName );
 
-	source = (byte*) ri.Z_Malloc( glConfig.vidWidth * glConfig.vidHeight * 3, TAG_TEMP_WORKSPACE, qfalse, 4 );
+	allsource = RB_ReadPixels(0, 0, glConfig.vidWidth, glConfig.vidHeight, &offset, &padlen);
+	source = allsource + offset;
 
-	buffer = (byte*) ri.Z_Malloc( LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18, TAG_TEMP_WORKSPACE, qfalse, 4 );
-	memset (buffer, 0, 18);
+	buffer = (byte *)ri.Z_Malloc(LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18, TAG_TEMP_WORKSPACE, qfalse, 4);
+	Com_Memset (buffer, 0, 18);
 	buffer[2] = 2;		// uncompressed type
 	buffer[12] = LEVELSHOTSIZE & 255;
 	buffer[13] = LEVELSHOTSIZE >> 8;
 	buffer[14] = LEVELSHOTSIZE & 255;
 	buffer[15] = LEVELSHOTSIZE >> 8;
 	buffer[16] = 24;	// pixel size
-
-	qglReadPixels( 0, 0, glConfig.vidWidth, glConfig.vidHeight, GL_RGB, GL_UNSIGNED_BYTE, source ); 
 
 	// resample from source
 	xScale = glConfig.vidWidth / (4.0*LEVELSHOTSIZE);
@@ -610,86 +688,17 @@ void R_LevelShot( void ) {
 	}
 
 	// gamma correct
-	if ( glConfig.deviceSupportsGamma ) {
+	if ( ( tr.overbrightBits > 0 ) && glConfig.deviceSupportsGamma ) {
 		R_GammaCorrect( buffer + 18, LEVELSHOTSIZE * LEVELSHOTSIZE * 3 );
 	}
 
 	ri.FS_WriteFile( checkname, buffer, LEVELSHOTSIZE * LEVELSHOTSIZE*3 + 18 );
 
-	Z_Free( buffer );
-	Z_Free( source );
+	ri.Z_Free( buffer );
+	ri.Z_Free( allsource );
 
-	ri.Printf( PRINT_ALL, "Wrote %s\n", checkname );
+	Com_Printf ("Wrote %s\n", checkname );
 }
-
-/* 
-================== 
-R_ScreenShot_f
-
-screenshot
-screenshot [silent]
-screenshot [levelshot]
-screenshot [filename]
-
-Doesn't print the pacifier message if there is a second arg
-================== 
-*/  
-void R_ScreenShot_f (void) {
-	char		checkname[MAX_OSPATH];
-	int			len;
-	static	int	lastNumber = -1;
-	qboolean	silent;
-
-	if ( !strcmp( ri.Cmd_Argv(1), "levelshot" ) ) {
-		R_LevelShot();
-		return;
-	}
-	if ( !strcmp( ri.Cmd_Argv(1), "silent" ) ) {
-		silent = qtrue;
-	} else {
-		silent = qfalse;
-	}
-
-	if ( ri.Cmd_Argc() == 2 && !silent ) {
-		// explicit filename
-		Com_sprintf( checkname, MAX_OSPATH, "screenshots/%s.jpg", ri.Cmd_Argv( 1 ) );
-	} else {
-		// scan for a free filename
-
-		// if we have saved a previous screenshot, don't scan
-		// again, because recording demo avis can involve
-		// thousands of shots
-		if ( lastNumber == -1 ) {
-			// scan for a free number
-			for ( lastNumber = 0 ; lastNumber <= 9999 ; lastNumber++ ) {
-				R_ScreenshotFilename( lastNumber, checkname, ".jpg" );
-
-				len = ri.FS_ReadFile( checkname, NULL );
-				if ( len <= 0 ) {
-					break;	// file doesn't exist
-				}
-			}
-		} else {
-			R_ScreenshotFilename( lastNumber, checkname, ".jpg" );
-		}
-
-		if ( lastNumber == 10000 ) {
-			ri.Printf (PRINT_ALL, "ScreenShot: Couldn't create a file\n"); 
-			return;
- 		}
-
-		lastNumber++;
-	}
-
-
-	R_TakeScreenshot( 0, 0, glConfig.vidWidth, glConfig.vidHeight, checkname );
-
-	if ( !silent ) {
-		ri.Printf (PRINT_ALL, "Wrote %s\n", checkname);
-	}
-} 
-
-
 
 /* 
 ================== 
@@ -702,63 +711,113 @@ screenshot [filename]
 
 Doesn't print the pacifier message if there is a second arg
 ================== 
-*/  
+*/
 void R_ScreenShotTGA_f (void) {
-	char		checkname[MAX_OSPATH];
-	int			len;
-	static	int	lastNumber = -1;
-	qboolean	silent;
+	char checkname[MAX_OSPATH] = {0};
+	qboolean silent = qfalse;
 
 	if ( !strcmp( ri.Cmd_Argv(1), "levelshot" ) ) {
 		R_LevelShot();
 		return;
 	}
-	if ( !strcmp( ri.Cmd_Argv(1), "silent" ) ) {
+
+	if ( !strcmp( ri.Cmd_Argv(1), "silent" ) )
 		silent = qtrue;
-	} else {
-		silent = qfalse;
-	}
 
 	if ( ri.Cmd_Argc() == 2 && !silent ) {
 		// explicit filename
-		Com_sprintf( checkname, MAX_OSPATH, "screenshots/%s.tga", ri.Cmd_Argv( 1 ) );
-	} else {
-		// scan for a free filename
+		Com_sprintf( checkname, sizeof( checkname ), "screenshots/%s.tga", ri.Cmd_Argv( 1 ) );
+	}
+	else {
+		// timestamp the file
+		R_ScreenshotFilename( checkname, sizeof( checkname ), ".tga" );
 
-		// if we have saved a previous screenshot, don't scan
-		// again, because recording demo avis can involve
-		// thousands of shots
-		if ( lastNumber == -1 ) {
-			// scan for a free number
-			for ( lastNumber = 0 ; lastNumber <= 9999 ; lastNumber++ ) {
-				R_ScreenshotFilename( lastNumber, checkname, ".tga" );
-
-				len = ri.FS_ReadFile( checkname, NULL );
-				if ( len <= 0 ) {
-					break;	// file doesn't exist
-				}
-			}
-		} else {
-			R_ScreenshotFilename( lastNumber, checkname, ".tga" );
-		}
-
-		if ( lastNumber == 10000 ) {
-			ri.Printf (PRINT_ALL, "ScreenShot: Couldn't create a file\n"); 
+		if ( ri.FS_FileExists( checkname ) ) {
+			Com_Printf( "ScreenShot: Couldn't create a file\n"); 
 			return;
  		}
-
-		lastNumber++;
 	}
-
 
 	R_TakeScreenshot( 0, 0, glConfig.vidWidth, glConfig.vidHeight, checkname );
 
-	if ( !silent ) {
-		ri.Printf (PRINT_ALL, "Wrote %s\n", checkname);
+	if ( !silent )
+		Com_Printf( "Wrote %s\n", checkname );
+}
+
+/* 
+================== 
+R_ScreenShotPNG_f
+
+screenshot
+screenshot [silent]
+screenshot [levelshot]
+screenshot [filename]
+
+Doesn't print the pacifier message if there is a second arg
+================== 
+*/
+void R_ScreenShotPNG_f (void) {
+	char checkname[MAX_OSPATH] = {0};
+	qboolean silent = qfalse;
+
+	if ( !strcmp( ri.Cmd_Argv(1), "levelshot" ) ) {
+		R_LevelShot();
+		return;
 	}
+
+	if ( !strcmp( ri.Cmd_Argv(1), "silent" ) )
+		silent = qtrue;
+
+	if ( ri.Cmd_Argc() == 2 && !silent ) {
+		// explicit filename
+		Com_sprintf( checkname, sizeof( checkname ), "screenshots/%s.png", ri.Cmd_Argv( 1 ) );
+	}
+	else {
+		// timestamp the file
+		R_ScreenshotFilename( checkname, sizeof( checkname ), ".png" );
+
+		if ( ri.FS_FileExists( checkname ) ) {
+			Com_Printf( "ScreenShot: Couldn't create a file\n"); 
+			return;
+ 		}
+	}
+
+	R_TakeScreenshotPNG( 0, 0, glConfig.vidWidth, glConfig.vidHeight, checkname );
+
+	if ( !silent )
+		Com_Printf( "Wrote %s\n", checkname );
 } 
 
+void R_ScreenShot_f (void) {
+	char checkname[MAX_OSPATH] = {0};
+	qboolean silent = qfalse;
 
+	if ( !strcmp( ri.Cmd_Argv(1), "levelshot" ) ) {
+		R_LevelShot();
+		return;
+	}
+	if ( !strcmp( ri.Cmd_Argv(1), "silent" ) )
+		silent = qtrue;
+
+	if ( ri.Cmd_Argc() == 2 && !silent ) {
+		// explicit filename
+		Com_sprintf( checkname, sizeof( checkname ), "screenshots/%s.jpg", ri.Cmd_Argv( 1 ) );
+	}
+	else {
+		// timestamp the file
+		R_ScreenshotFilename( checkname, sizeof( checkname ), ".jpg" );
+
+		if ( ri.FS_FileExists( checkname ) ) {
+			Com_Printf( "ScreenShot: Couldn't create a file\n" );
+			return;
+ 		}
+	}
+
+	R_TakeScreenshotJPEG( 0, 0, glConfig.vidWidth, glConfig.vidHeight, checkname );
+
+	if ( !silent )
+		Com_Printf( "Wrote %s\n", checkname );
+}
 
 //============================================================================
 
@@ -1079,6 +1138,12 @@ void R_FogColor_f(void)
 #endif
 #define MAX_PRIMITIVES 3
 
+#ifdef _WIN32
+#define SWAPINTERVAL_FLAGS CVAR_ARCHIVE
+#else
+#define SWAPINTERVAL_FLAGS CVAR_ARCHIVE | CVAR_LATCH
+#endif
+
 /*
 ===============
 R_Register
@@ -1089,9 +1154,6 @@ void R_Register( void )
 	//
 	// latched and archived variables
 	//
-#ifndef __NO_JK2
-	com_jk2 = ri.Cvar_Get( "com_jk2", "0", CVAR_INIT );
-#endif
 
 	r_allowExtensions = ri.Cvar_Get( "r_allowExtensions", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_ext_compressed_textures = ri.Cvar_Get( "r_ext_compress_textures", "1", CVAR_ARCHIVE | CVAR_LATCH );
@@ -1137,14 +1199,15 @@ void R_Register( void )
 	r_simpleMipMaps = ri.Cvar_Get( "r_simpleMipMaps", "1", CVAR_ARCHIVE | CVAR_LATCH );
 	r_vertexLight = ri.Cvar_Get( "r_vertexLight", "0", CVAR_ARCHIVE | CVAR_LATCH );
 	r_subdivisions = ri.Cvar_Get ("r_subdivisions", "4", CVAR_ARCHIVE | CVAR_LATCH);
+	ri.Cvar_CheckRange( r_subdivisions, 4, 80, qfalse );
 	r_intensity = ri.Cvar_Get ("r_intensity", "1", CVAR_LATCH|CVAR_ARCHIVE );
 	
 	//
 	// temporary latched variables that can only change over a restart
 	//
 	r_displayRefresh = ri.Cvar_Get( "r_displayRefresh", "0", CVAR_LATCH );
-	ri.Cvar_CheckRange( r_displayRefresh, 0, 200, qtrue );
-	r_fullbright = ri.Cvar_Get ("r_fullbright", "0", CVAR_CHEAT );
+	ri.Cvar_CheckRange( r_displayRefresh, 0, 240, qtrue );
+	r_fullbright = ri.Cvar_Get ("r_fullbright", "0", CVAR_LATCH );
 	r_singleShader = ri.Cvar_Get ("r_singleShader", "0", CVAR_CHEAT | CVAR_LATCH );
 
 	//
@@ -1152,24 +1215,24 @@ void R_Register( void )
 	//
 	r_lodCurveError = ri.Cvar_Get( "r_lodCurveError", "250", CVAR_ARCHIVE );
 	r_lodbias = ri.Cvar_Get( "r_lodbias", "0", CVAR_ARCHIVE );
-	r_flares = ri.Cvar_Get ("r_flares", "1", CVAR_ARCHIVE );
+	r_flares = ri.Cvar_Get ("r_flares", "0", CVAR_ARCHIVE );
 	r_lodscale = ri.Cvar_Get( "r_lodscale", "10", CVAR_ARCHIVE );
 
-	r_znear = ri.Cvar_Get( "r_znear", "4", CVAR_CHEAT );	//if set any lower, you lose a lot of precision in the distance
-	ri.Cvar_CheckRange( r_znear, 0.001f, 200, qfalse ); // was qtrue in JA, is qfalse properly in ioq3
+	r_znear = ri.Cvar_Get( "r_znear", "4", CVAR_ARCHIVE );	//if set any lower, you lose a lot of precision in the distance
+	ri.Cvar_CheckRange( r_znear, 0.001f, 10, qfalse ); // was qtrue in JA, is qfalse properly in ioq3
 	r_ignoreGLErrors = ri.Cvar_Get( "r_ignoreGLErrors", "1", CVAR_ARCHIVE );
 	r_fastsky = ri.Cvar_Get( "r_fastsky", "0", CVAR_ARCHIVE );
 	r_drawSun = ri.Cvar_Get( "r_drawSun", "0", CVAR_ARCHIVE );
 	r_dynamiclight = ri.Cvar_Get( "r_dynamiclight", "1", CVAR_ARCHIVE );
 	r_dlightBacks = ri.Cvar_Get( "r_dlightBacks", "0", CVAR_ARCHIVE );
 	r_finish = ri.Cvar_Get ("r_finish", "0", CVAR_ARCHIVE);
-	r_textureMode = ri.Cvar_Get( "r_textureMode", "GL_LINEAR_MIPMAP_NEAREST", CVAR_ARCHIVE );
-	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "0", CVAR_ARCHIVE );
+	r_textureMode = ri.Cvar_Get( "r_textureMode", "GL_LINEAR_MIPMAP_LINEAR", CVAR_ARCHIVE );
+	r_swapInterval = ri.Cvar_Get( "r_swapInterval", "0", SWAPINTERVAL_FLAGS );
 	r_gamma = ri.Cvar_Get( "r_gamma", "1", CVAR_ARCHIVE );
 	r_facePlaneCull = ri.Cvar_Get ("r_facePlaneCull", "1", CVAR_ARCHIVE );
 
-	r_dlightStyle = ri.Cvar_Get ("r_dlightStyle", "1", CVAR_TEMP);
-	r_surfaceSprites = ri.Cvar_Get ("r_surfaceSprites", "1", CVAR_TEMP);
+	r_dlightStyle = ri.Cvar_Get ("r_dlightStyle", "1", CVAR_ARCHIVE);
+	r_surfaceSprites = ri.Cvar_Get ("r_surfaceSprites", "1", CVAR_ARCHIVE);
 	r_surfaceWeather = ri.Cvar_Get ("r_surfaceWeather", "0", CVAR_TEMP);
 
 	r_windSpeed = ri.Cvar_Get ("r_windSpeed", "0", 0);
@@ -1259,7 +1322,7 @@ Ghoul2 Insert End
 	sv_mapname = ri.Cvar_Get ( "mapname", "nomap", CVAR_SERVERINFO | CVAR_ROM );
 	sv_mapChecksum = ri.Cvar_Get ( "sv_mapChecksum", "", CVAR_ROM );
 	se_language = ri.Cvar_Get ( "se_language", "english", CVAR_ARCHIVE | CVAR_NORESTART );
-#ifndef __NO_JK2
+#ifdef JK2_MODE
 	sp_language = ri.Cvar_Get ( "sp_language", va("%d", SP_LANGUAGE_ENGLISH), CVAR_ARCHIVE | CVAR_NORESTART );
 #endif
 	com_buildScript = ri.Cvar_Get ( "com_buildScript", "0", 0 );
@@ -1272,6 +1335,10 @@ Ghoul2 Insert End
 
 	r_environmentMapping = ri.Cvar_Get( "r_environmentMapping", "1", CVAR_ARCHIVE );
 
+	r_screenshotJpegQuality				= ri.Cvar_Get( "r_screenshotJpegQuality",			"95",						CVAR_ARCHIVE );
+
+	ri.Cvar_CheckRange( r_screenshotJpegQuality, 10, 100, qtrue );
+
 	// make sure all the commands added here are also
 	// removed in R_Shutdown
 	ri.Cmd_AddCommand( "imagelist", R_ImageList_f );
@@ -1282,6 +1349,7 @@ Ghoul2 Insert End
 	ri.Cmd_AddCommand( "modelist", R_ModeList_f );
 	ri.Cmd_AddCommand( "r_atihack", R_AtiHackToggle_f );
 	ri.Cmd_AddCommand( "screenshot", R_ScreenShot_f );
+	ri.Cmd_AddCommand( "screenshot_png", R_ScreenShotPNG_f );
 	ri.Cmd_AddCommand( "screenshot_tga", R_ScreenShotTGA_f );
 	ri.Cmd_AddCommand( "gfxinfo", GfxInfo_f );
 	ri.Cmd_AddCommand( "r_fogDistance", R_FogDistance_f);
@@ -1331,7 +1399,7 @@ void R_Init( void ) {
 
 #ifndef FINAL_BUILD
 	if ( (intptr_t)tess.xyz & 15 ) {
-		Com_Printf( "WARNING: tess.xyz not 16 byte aligned (%x)\n",(intptr_t)tess.xyz & 15 );
+		Com_Printf( "WARNING: tess.xyz not 16 byte aligned\n" );
 	}
 #endif
 
@@ -1364,8 +1432,8 @@ void R_Init( void ) {
 
 	R_InitFogTable();
 
+	R_ImageLoader_Init();
 	R_NoiseInit();
-
 	R_Register();
 
 	backEndData = (backEndData_t *) Hunk_Alloc( sizeof( backEndData_t ), qtrue );
@@ -1391,6 +1459,8 @@ void R_Init( void ) {
 	if ( err != GL_NO_ERROR )
 		ri.Printf (PRINT_ALL, "glGetError() = 0x%x\n", err);
 
+	RestoreGhoul2InfoArray();
+
 	//ri.Printf( PRINT_ALL, "----- finished R_Init -----\n" );
 }
 
@@ -1400,8 +1470,12 @@ RE_Shutdown
 ===============
 */
 extern void R_ShutdownWorldEffects(void);
-void RE_Shutdown( qboolean destroyWindow ) {	
-	//ri.Printf( PRINT_ALL, "RE_Shutdown( %i )\n", destroyWindow );
+void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {	
+
+	// Need this temporarily.
+#ifdef _WIN32
+	tr.wv = ri.GetWinVars();
+#endif
 
 	ri.Cmd_RemoveCommand ("imagelist");
 	ri.Cmd_RemoveCommand ("shaderlist");
@@ -1411,6 +1485,7 @@ void RE_Shutdown( qboolean destroyWindow ) {
 	ri.Cmd_RemoveCommand ("modelist" );
 	ri.Cmd_RemoveCommand ("r_atihack");
 	ri.Cmd_RemoveCommand ("screenshot");
+	ri.Cmd_RemoveCommand ("screenshot_png");
 	ri.Cmd_RemoveCommand ("screenshot_tga");	
 	ri.Cmd_RemoveCommand ("gfxinfo");
 	ri.Cmd_RemoveCommand ("r_fogDistance");
@@ -1463,6 +1538,11 @@ void RE_Shutdown( qboolean destroyWindow ) {
 		if (destroyWindow)
 		{
 			R_DeleteTextures();	// only do this for vid_restart now, not during things like map load
+
+			if ( restarting )
+			{
+				SaveGhoul2InfoArray();
+			}
 		}
 	}
 
@@ -1558,6 +1638,7 @@ void RE_SetRangedFog( float dist )
 	}
 }
 
+bool inServer = false;
 void RE_SVModelInit( void )
 {
 	//ri.CM_ShaderTableCleanup();
@@ -1565,7 +1646,9 @@ void RE_SVModelInit( void )
 	tr.numShaders = 0;
 	tr.numSkins = 0;
 	R_InitImages();
+	inServer = true;
 	R_InitShaders();
+	inServer = false;
 	R_ModelInit();
 }
 
@@ -1601,7 +1684,7 @@ extern void G2Time_ReportTimers(void);
 #endif
 extern IGhoul2InfoArray &TheGhoul2InfoArray();
 
-#ifndef __NO_JK2
+#ifdef JK2_MODE
 unsigned int AnyLanguage_ReadCharFromString_JK2 ( char **text, qboolean *pbIsTrailingPunctuation ) {
 	return AnyLanguage_ReadCharFromString (text, pbIsTrailingPunctuation);
 }
@@ -1692,13 +1775,14 @@ extern "C" Q_EXPORT refexport_t* QDECL GetRefAPI ( int apiVersion, refimport_t *
 	re.Language_IsAsian = Language_IsAsian;
 	re.Language_UsesSpaces = Language_UsesSpaces;
 	re.AnyLanguage_ReadCharFromString = AnyLanguage_ReadCharFromString;
-#ifndef __NO_JK2
+#ifdef JK2_MODE
 	re.AnyLanguage_ReadCharFromString2 = AnyLanguage_ReadCharFromString_JK2;
 #endif
 
 	re.R_Resample = R_Resample;
 	re.R_LoadDataImage = R_LoadDataImage;
 	re.R_InvertImage = R_InvertImage;
+	re.SavePNG = RE_SavePNG;
 	re.R_InitWorldEffects = R_InitWorldEffects;
 	re.R_CreateAutomapImage = R_CreateAutomapImage;
 	re.R_ClearStuffToStopGhoul2CrashingThings = R_ClearStuffToStopGhoul2CrashingThings;

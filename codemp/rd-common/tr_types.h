@@ -98,7 +98,7 @@ typedef enum {
 	RT_MAX_REF_ENTITY_TYPE
 } refEntityType_t;
 
-typedef struct miniRefEntity_s 
+typedef struct miniRefEntity_s
 {
 	refEntityType_t		reType;
 	int					renderfx;
@@ -187,10 +187,10 @@ typedef struct refEntity_s {
 	qhandle_t	customSkin;			// NULL for default skin
 
 	// texturing
-	union	
+	union
 	{
 //		int			skinNum;		// inline skin index
-//		ivec3_t		terxelCoords;	// coords of patch for RT_TERXELS	
+//		ivec3_t		terxelCoords;	// coords of patch for RT_TERXELS
 		struct
 		{
 			int		miniStart;
@@ -200,13 +200,13 @@ typedef struct refEntity_s {
 
 	// extra sprite information
 	union {
-		struct 
+		struct
 		{
 			float rotation;
 			float radius;
 			byte  vertRGBA[4][4];
 		} sprite;
-		struct 
+		struct
 		{
 			float width;
 			float width2;
@@ -227,7 +227,7 @@ typedef struct refEntity_s {
 			float bias;
 			qboolean wrap;
 		} cylinder;
-		struct 
+		struct
 		{
 			float width;
 			float deviation;
@@ -261,7 +261,7 @@ Ghoul2 Insert Start
 #include "qcommon/qfiles.h"
 
 // skins allow models to be retextured without modifying the model file
-//Raz: this is a mock copy, renderers may have their own implementation.
+//this is a mock copy, renderers may have their own implementation.
 // try not to break the ghoul2 code which is very implicit :/
 typedef struct _skinSurface_s {
 	char		name[MAX_QPATH];
@@ -383,14 +383,3 @@ typedef struct glconfig_s {
 	qboolean				isFullscreen;
 	qboolean				stereoEnabled;
 } glconfig_t;
-
-
-#if !defined _WIN32
-
-#define OPENGL_DRIVER_NAME	"libGL.so"
-
-#else
-
-#define OPENGL_DRIVER_NAME	"opengl32"
-
-#endif	// !defined _WIN32

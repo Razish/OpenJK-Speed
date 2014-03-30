@@ -6,13 +6,8 @@
 #include "tr_local.h"
 #include "../rd-common/tr_common.h"
 #include "qcommon/MiniHeap.h"
-#include "G2_local.h"
+#include "ghoul2/g2_local.h"
 
-
-//#ifdef __USEA3D
-//// Defined in snd_a3dg_refcommon.c
-//void RE_A3D_RenderGeometry (void *pVoidA3D, void *pVoidGeom, void *pVoidMat, void *pVoidGeomStatus);
-//#endif
 
 cvar_t	*r_verbose;
 cvar_t	*r_ignore;
@@ -257,14 +252,6 @@ static void R_ModeList_f( void )
 	Com_Printf ("\n" );
 }
 
-/*
-==============================================================================
-
-						SCREEN SHOTS
-
-==============================================================================
-*/
-
 #ifdef _DEBUG
 #define MIN_PRIMITIVES -1
 #else
@@ -272,12 +259,18 @@ static void R_ModeList_f( void )
 #endif
 #define MAX_PRIMITIVES 3
 
+#ifdef _WIN32
+#define SWAPINTERVAL_FLAGS CVAR_ARCHIVE
+#else
+#define SWAPINTERVAL_FLAGS CVAR_ARCHIVE | CVAR_LATCH
+#endif
+
 /*
 ===============
 R_Register
 ===============
 */
-void R_Register( void ) 
+void R_Register( void )
 {
 	//
 	// latched and archived variables
@@ -329,8 +322,8 @@ void R_Register( void )
 	r_lodbias							= ri->Cvar_Get( "r_lodbias",						"0",						CVAR_ARCHIVE );
 	r_autolodscalevalue					= ri->Cvar_Get( "r_autolodscalevalue",				"0",						CVAR_ROM );
 	r_flares							= ri->Cvar_Get( "r_flares",							"1",						CVAR_ARCHIVE );
-	r_znear								= ri->Cvar_Get( "r_znear",							"4",						CVAR_CHEAT );
-	ri->Cvar_CheckRange( r_znear, 0.001f, 200, qfalse ); // was qtrue in JA, is qfalse properly in ioq3
+	r_znear								= ri->Cvar_Get( "r_znear",							"4",						CVAR_ARCHIVE );
+	ri->Cvar_CheckRange( r_znear, 0.001f, 10, qfalse );
 	r_ignoreGLErrors					= ri->Cvar_Get( "r_ignoreGLErrors",					"1",						CVAR_ARCHIVE );
 	r_fastsky							= ri->Cvar_Get( "r_fastsky",						"0",						CVAR_ARCHIVE );
 	r_inGameVideo						= ri->Cvar_Get( "r_inGameVideo",					"1",						CVAR_ARCHIVE );
@@ -340,7 +333,7 @@ void R_Register( void )
 //	r_dlightBacks						= ri->Cvar_Get( "r_dlightBacks",					"1",						CVAR_CHEAT );
 	r_finish							= ri->Cvar_Get( "r_finish",							"0",						CVAR_ARCHIVE );
 	r_textureMode						= ri->Cvar_Get( "r_textureMode",					"GL_LINEAR_MIPMAP_NEAREST",	CVAR_ARCHIVE );
-	r_swapInterval						= ri->Cvar_Get( "r_swapInterval",					"0",						CVAR_ARCHIVE );
+	r_swapInterval						= ri->Cvar_Get( "r_swapInterval",					"0",						SWAPINTERVAL_FLAGS );
 	r_markcount							= ri->Cvar_Get( "r_markcount",						"100",						CVAR_ARCHIVE );
 	r_gamma								= ri->Cvar_Get( "r_gamma",							"1",						CVAR_ARCHIVE );
 	r_facePlaneCull						= ri->Cvar_Get( "r_facePlaneCull",					"1",						CVAR_ARCHIVE );
@@ -430,7 +423,7 @@ Ghoul2 Insert End
 	// removed in R_Shutdown
 	ri->Cmd_AddCommand( "modellist", R_Modellist_f );
 	ri->Cmd_AddCommand( "modelist", R_ModeList_f );
-	ri->Cmd_AddCommand( "modelcacheinfo", RE_RegisterModels_Info_f);
+	ri->Cmd_AddCommand( "modelcacheinfo", RE_RegisterModels_Info_f );
 
 }
 
@@ -441,7 +434,7 @@ R_Init
 ===============
 */
 extern void R_InitWorldEffects(void); //tr_WorldEffects.cpp
-void R_Init( void ) {	
+void R_Init( void ) {
 	int i;
 	byte *ptr;
 
@@ -507,7 +500,7 @@ void R_Init( void ) {
 RE_Shutdown
 ===============
 */
-void RE_Shutdown( qboolean destroyWindow ) {	
+void RE_Shutdown( qboolean destroyWindow, qboolean restarting ) {
 
 //	Com_Printf ("RE_Shutdown( %i )\n", destroyWindow );
 
@@ -527,7 +520,6 @@ extern void R_LoadDataImage( const char *name, byte **pic, int *width, int *heig
 extern void R_InvertImage(byte *data, int width, int height, int depth);
 extern void R_Resample(byte *source, int swidth, int sheight, byte *dest, int dwidth, int dheight, int components);
 extern qhandle_t RE_RegisterServerSkin( const char *name );
-extern IGhoul2InfoArray &TheGhoul2InfoArray();
 
 /*
 @@@@@@@@@@@@@@@@@@@@@
@@ -595,6 +587,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.G2API_GetBoneIndex					= G2API_GetBoneIndex;
 	re.G2API_GetGhoul2ModelFlags			= G2API_GetGhoul2ModelFlags;
 	re.G2API_GetGLAName						= G2API_GetGLAName;
+	re.G2API_GetModelName					= G2API_GetModelName;
 	re.G2API_GetParentSurface				= G2API_GetParentSurface;
 	re.G2API_GetRagBonePos					= G2API_GetRagBonePos;
 	re.G2API_GetSurfaceIndex				= G2API_GetSurfaceIndex;
@@ -608,6 +601,7 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 	re.G2API_HaveWeGhoul2Models				= G2API_HaveWeGhoul2Models;
 	re.G2API_IKMove							= G2API_IKMove;
 	re.G2API_InitGhoul2Model				= G2API_InitGhoul2Model;
+	re.G2API_IsGhoul2InfovValid				= G2API_IsGhoul2InfovValid;
 	re.G2API_IsPaused						= G2API_IsPaused;
 	re.G2API_ListBones						= G2API_ListBones;
 	re.G2API_ListSurfaces					= G2API_ListSurfaces;
@@ -665,8 +659,6 @@ refexport_t *GetRefAPI ( int apiVersion, refimport_t *rimp ) {
 //	re.LoadImageJA							= RE_LoadImage;
 //	re.CreateAutomapImage					= R_CreateAutomapImage;
 	re.SavePNG								= RE_SavePNG;
-
-	re.TheGhoul2InfoArray					= TheGhoul2InfoArray;
 
 	return &re;
 }

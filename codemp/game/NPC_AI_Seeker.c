@@ -34,7 +34,7 @@ void NPC_Seeker_Precache(void)
 void NPC_Seeker_Pain(gentity_t *self, gentity_t *attacker, int damage)
 {
 	if ( !(self->NPC->aiFlags&NPCAI_CUSTOM_GRAVITY ))
-	{//void G_Damage( gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod, int hitLoc=HL_NONE );
+	{
 		G_Damage( self, NULL, NULL, (float*)vec3_origin, (float*)vec3_origin, 999, 0, MOD_FALLING );
 	}
 
@@ -47,7 +47,7 @@ void NPC_Seeker_Pain(gentity_t *self, gentity_t *attacker, int damage)
 
 //------------------------------------
 void Seeker_MaintainHeight( void )
-{	
+{
 	float	dif;
 
 	// Update our angles regardless
@@ -63,7 +63,7 @@ void Seeker_MaintainHeight( void )
 			TIMER_Set( NPCS.NPC,"heightChange",Q_irand( 1000, 3000 ));
 
 			// Find the height difference
-			dif = (NPCS.NPC->enemy->r.currentOrigin[2] +  flrand( NPCS.NPC->enemy->r.maxs[2]/2, NPCS.NPC->enemy->r.maxs[2]+8 )) - NPCS.NPC->r.currentOrigin[2]; 
+			dif = (NPCS.NPC->enemy->r.currentOrigin[2] +  flrand( NPCS.NPC->enemy->r.maxs[2]/2, NPCS.NPC->enemy->r.maxs[2]+8 )) - NPCS.NPC->r.currentOrigin[2];
 
 			difFactor = 1.0f;
 			if ( NPCS.NPC->client->NPC_class == CLASS_BOBAFETT )
@@ -279,7 +279,7 @@ void Seeker_Hunt( qboolean visible, qboolean advance )
 	else
 	{
 		VectorSubtract( NPCS.NPC->enemy->r.currentOrigin, NPCS.NPC->r.currentOrigin, forward );
-		distance = VectorNormalize( forward );
+		/*distance = */VectorNormalize( forward );
 	}
 
 	speed = SEEKER_FORWARD_BASE_SPEED + SEEKER_FORWARD_MULTIPLIER * g_npcspskill.integer;
@@ -344,7 +344,7 @@ void Seeker_Ranged( qboolean visible, qboolean advance )
 	{
 		Seeker_Hunt( visible, advance );
 	}
-} 
+}
 
 //------------------------------------
 void Seeker_Attack( void )
@@ -356,7 +356,7 @@ void Seeker_Attack( void )
 	Seeker_MaintainHeight();
 
 	// Rate our distance to the target, and our visibilty
-	distance	= DistanceHorizontalSquared( NPCS.NPC->r.currentOrigin, NPCS.NPC->enemy->r.currentOrigin );	
+	distance	= DistanceHorizontalSquared( NPCS.NPC->r.currentOrigin, NPCS.NPC->enemy->r.currentOrigin );
 	visible		= NPC_ClearLOS4( NPCS.NPC->enemy );
 	advance		= (qboolean)(distance > MIN_DISTANCE_SQR);
 
@@ -393,13 +393,13 @@ void Seeker_FindEnemy( void )
 
 	numFound = trap->EntitiesInBox( mins, maxs, entityList, MAX_GENTITIES );
 
-	for ( i = 0 ; i < numFound ; i++ ) 
+	for ( i = 0 ; i < numFound ; i++ )
 	{
 		ent = &g_entities[entityList[i]];
 
-		if ( ent->s.number == NPCS.NPC->s.number 
-			|| !ent->client //&& || !ent->NPC 
-			|| ent->health <= 0 
+		if ( ent->s.number == NPCS.NPC->s.number
+			|| !ent->client //&& || !ent->NPC
+			|| ent->health <= 0
 			|| !ent->inuse )
 		{
 			continue;
@@ -453,7 +453,7 @@ void Seeker_FollowOwner( void )
 	}
 	//rwwFIXMEFIXME: Care about all clients not just 0
 	dis	= DistanceHorizontalSquared( NPCS.NPC->r.currentOrigin, owner->r.currentOrigin );
-	
+
 	minDistSqr = MIN_DISTANCE_SQR;
 
 	if ( NPCS.NPC->client->NPC_class == CLASS_BOBAFETT )
@@ -536,7 +536,7 @@ void NPC_BSSeeker_Default( void )
 	{
 		//OJKFIXME: clientnum 0
 		gentity_t *owner = &g_entities[0];
-		if ( owner->health <= 0 
+		if ( owner->health <= 0
 			|| (owner->client && owner->client->pers.connected == CON_DISCONNECTED) )
 		{//owner is dead or gone
 			//remove me

@@ -82,7 +82,6 @@ void     QGL_Shutdown( void );
 glwstate_t glw_state;
 
 cvar_t	*r_allowSoftwareGL;		// don't abort out if the pixelformat claims software
-cvar_t	*r_maskMinidriver;		// allow a different dll name to be treated as if it were opengl32.dll
 
 // Whether the current hardware supports dynamic glows/flares.
 extern bool g_bDynamicGlowSupported;
@@ -577,7 +576,7 @@ static qboolean GLW_CreateWindow( int width, int height, int colorbits, qboolean
 		wc.cbClsExtra    = 0;
 		wc.cbWndExtra    = 0;
 		wc.hInstance     = tr.wv->hInstance;
-	    wc.hIcon         = LoadIcon (tr.wv->hInstance, MAKEINTRESOURCE(IDI_ICON1));	//jfm: to get icon
+		wc.hIcon         = LoadIcon( tr.wv->hInstance, MAKEINTRESOURCE(IDI_ICON1));
 		wc.hCursor       = LoadCursor (NULL,IDC_ARROW);
 		wc.hbrBackground = 0;//(struct HBRUSH__ *)COLOR_GRAYTEXT;
 		wc.lpszMenuName  = 0;
@@ -585,7 +584,7 @@ static qboolean GLW_CreateWindow( int width, int height, int colorbits, qboolean
 
 		if ( !RegisterClass( &wc ) )
 		{
-			Com_Error( ERR_FATAL, "GLW_CreateWindow: could not register window class" );
+			Com_Error( ERR_FATAL, "GLW_CreateWindow: could not register window class, error code: 0x%x", GetLastError() );
 		}
 		s_classRegistered = qtrue;
 		ri.Printf( PRINT_ALL, "...registered window class\n" );
@@ -606,7 +605,7 @@ static qboolean GLW_CreateWindow( int width, int height, int colorbits, qboolean
 
 		if ( cdsFullscreen )
 		{
-			exstyle = WS_EX_TOPMOST;
+			exstyle = 0;//WS_EX_TOPMOST;
 			stylebits = WS_SYSMENU|WS_POPUP|WS_VISIBLE;	//sysmenu gives you the icon
 		}
 		else
@@ -1184,12 +1183,8 @@ static void GLW_InitExtensions( void )
 	}
 
 	// GL_EXT_clamp_to_edge
-	glConfig.clampToEdgeAvailable = qfalse;
-	if ( GL_CheckForExtension( "GL_EXT_texture_edge_clamp" ) )
-	{
-		glConfig.clampToEdgeAvailable = qtrue;
-		ri.Printf( PRINT_ALL, "...Using GL_EXT_texture_edge_clamp\n" );
-	}
+	glConfig.clampToEdgeAvailable = qtrue;
+	Com_Printf ("...using GL_EXT_texture_edge_clamp\n" );
 
 	// WGL_EXT_swap_control
 	qwglSwapIntervalEXT = ( BOOL (WINAPI *)(int)) qwglGetProcAddress( "wglSwapIntervalEXT" );
@@ -1435,8 +1430,8 @@ static void GLW_InitExtensions( void )
 
 	// Figure out which texture rectangle extension to use.
 	bool bTexRectSupported = false;
-	if ( strnicmp( glConfig.vendor_string, "ATI Technologies",16 )==0
-		&& strnicmp( glConfig.version_string, "1.3.3",5 )==0 
+	if ( Q_stricmpn( glConfig.vendor_string, "ATI Technologies",16 )==0
+		&& Q_stricmpn( glConfig.version_string, "1.3.3",5 )==0 
 		&& glConfig.version_string[5] < '9' ) //1.3.34 and 1.3.37 and 1.3.38 are broken for sure, 1.3.39 is not
 	{
 		g_bTextureRectangleHack = true;
@@ -1537,9 +1532,8 @@ static void GLW_InitExtensions( void )
 	// Find out how many general combiners they have.
 	#define GL_MAX_GENERAL_COMBINERS_NV       0x854D
 	GLint iNumGeneralCombiners = 0;
-	if (bNVRegisterCombiners) {
+	if(bNVRegisterCombiners)
 		qglGetIntegerv( GL_MAX_GENERAL_COMBINERS_NV, &iNumGeneralCombiners );
-	}
 
 	// Only allow dynamic glows/flares if they have the hardware
 	if ( bTexRectSupported && bARBVertexProgram && bHasRenderTexture && qglActiveTextureARB && glConfig.maxActiveTextures >= 4 &&

@@ -7,8 +7,6 @@
 // display context for new ui stuff
 displayContextDef_t cgDC;
 
-#include "cg_lights.h"
-
 extern int cgSiegeRoundState;
 extern int cgSiegeRoundTime;
 /*
@@ -22,7 +20,7 @@ Ghoul2 Insert End
 void CG_InitJetpackGhoul2(void);
 void CG_CleanJetpackGhoul2(void);
 
-vec4_t colorTable[CT_MAX] = 
+vec4_t colorTable[CT_MAX] =
 {
 	{0, 0, 0, 0},			// CT_NONE
 	{0, 0, 0, 1},			// CT_BLACK
@@ -153,95 +151,80 @@ qboolean CG_NoUseableForce(void)
 	return qtrue;
 }
 
-static int C_PointContents(void)
-{
-	TCGPointContents	*data = (TCGPointContents *)cg.sharedBuffer;
-
+static int C_PointContents( void ) {
+	TCGPointContents *data = &cg.sharedBuffer.pointContents;
 	return CG_PointContents( data->mPoint, data->mPassEntityNum );
 }
 
-static void C_GetLerpOrigin(void)
-{
-	TCGVectorData		*data = (TCGVectorData *)cg.sharedBuffer;
-
-	VectorCopy(cg_entities[data->mEntityNum].lerpOrigin, data->mPoint);
+static void C_GetLerpOrigin( void ) {
+	TCGVectorData *data = &cg.sharedBuffer.vectorData;
+	VectorCopy( cg_entities[data->mEntityNum].lerpOrigin, data->mPoint );
 }
 
-static void C_GetLerpData(void)
-{//only used by FX system to pass to getboltmat
-	TCGGetBoltData		*data = (TCGGetBoltData *)cg.sharedBuffer;
+// only used by FX system to pass to getboltmat
+static void C_GetLerpData( void ) {
+	TCGGetBoltData *data = &cg.sharedBuffer.getBoltData;
 
-	VectorCopy(cg_entities[data->mEntityNum].lerpOrigin, data->mOrigin);
-	VectorCopy(cg_entities[data->mEntityNum].modelScale, data->mScale);
-	VectorCopy(cg_entities[data->mEntityNum].lerpAngles, data->mAngles);
-	if (cg_entities[data->mEntityNum].currentState.eType == ET_PLAYER)
-	{ //normal player
+	VectorCopy( cg_entities[data->mEntityNum].lerpOrigin, data->mOrigin );
+	VectorCopy( cg_entities[data->mEntityNum].modelScale, data->mScale );
+	VectorCopy( cg_entities[data->mEntityNum].lerpAngles, data->mAngles );
+	if ( cg_entities[data->mEntityNum].currentState.eType == ET_PLAYER ) {
+		// normal player
 		data->mAngles[PITCH] = 0.0f;
 		data->mAngles[ROLL] = 0.0f;
 	}
-	else if (cg_entities[data->mEntityNum].currentState.eType == ET_NPC)
-	{ //an NPC
+	else if ( cg_entities[data->mEntityNum].currentState.eType == ET_NPC ) {
+		// an NPC
 		Vehicle_t *pVeh = cg_entities[data->mEntityNum].m_pVehicle;
-		if (!pVeh)
-		{ //for vehicles, we may or may not want to 0 out pitch and roll
+		if ( !pVeh ) {
+			// for vehicles, we may or may not want to 0 out pitch and roll
 			data->mAngles[PITCH] = 0.0f;
 			data->mAngles[ROLL] = 0.0f;
 		}
-		else if (pVeh->m_pVehicleInfo->type == VH_SPEEDER)
-		{ //speeder wants no pitch but a roll
+		else if ( pVeh->m_pVehicleInfo->type == VH_SPEEDER ) {
+			// speeder wants no pitch but a roll
 			data->mAngles[PITCH] = 0.0f;
 		}
-		else if (pVeh->m_pVehicleInfo->type != VH_FIGHTER)
-		{ //fighters want all angles
+		else if ( pVeh->m_pVehicleInfo->type != VH_FIGHTER ) {
+			// fighters want all angles
 			data->mAngles[PITCH] = 0.0f;
 			data->mAngles[ROLL] = 0.0f;
 		}
 	}
 }
 
-static void C_Trace(void)
-{
-	TCGTrace	*td = (TCGTrace *)cg.sharedBuffer;
-
-	CG_Trace(&td->mResult, td->mStart, td->mMins, td->mMaxs, td->mEnd, td->mSkipNumber, td->mMask);
+static void C_Trace( void ) {
+	TCGTrace *td = &cg.sharedBuffer.trace;
+	CG_Trace( &td->mResult, td->mStart, td->mMins, td->mMaxs, td->mEnd, td->mSkipNumber, td->mMask );
 }
 
-static void C_G2Trace(void)
-{
-	TCGTrace	*td = (TCGTrace *)cg.sharedBuffer;
-
-	CG_G2Trace(&td->mResult, td->mStart, td->mMins, td->mMaxs, td->mEnd, td->mSkipNumber, td->mMask);
+static void C_G2Trace( void ) {
+	TCGTrace *td = &cg.sharedBuffer.trace;
+	CG_G2Trace( &td->mResult, td->mStart, td->mMins, td->mMaxs, td->mEnd, td->mSkipNumber, td->mMask );
 }
 
-static void C_G2Mark(void)
-{
-	TCGG2Mark	*td = (TCGG2Mark *)cg.sharedBuffer;
-	trace_t		tr;
-	vec3_t		end;
+static void C_G2Mark( void ) {
+	TCGG2Mark *td = &cg.sharedBuffer.g2Mark;
+	trace_t tr;
+	vec3_t end;
 
-	VectorMA(td->start, 64, td->dir, end);
-	CG_G2Trace(&tr, td->start, NULL, NULL, end, ENTITYNUM_NONE, MASK_PLAYERSOLID);
+	VectorMA( td->start, 64.0f, td->dir, end );
+	CG_G2Trace( &tr, td->start, NULL, NULL, end, ENTITYNUM_NONE, MASK_PLAYERSOLID );
 
-	if (tr.entityNum < ENTITYNUM_WORLD &&
-		cg_entities[tr.entityNum].ghoul2)
-	{ //hit someone with a ghoul2 instance, let's project the decal on them then.
+	if ( tr.entityNum < ENTITYNUM_WORLD && cg_entities[tr.entityNum].ghoul2 ) {
+		// hit someone with a ghoul2 instance, let's project the decal on them then.
 		centity_t *cent = &cg_entities[tr.entityNum];
 
-		//CG_TestLine(tr.endpos, end, 2000, 0x0000ff, 1);
+	//	CG_TestLine( tr.endpos, end, 2000, 0x0000ff, 1 );
 
-		CG_AddGhoul2Mark(td->shader, td->size, tr.endpos, end, tr.entityNum,
-			cent->lerpOrigin, cent->lerpAngles[YAW], cent->ghoul2, cent->modelScale,
-			Q_irand(2000, 4000));
-		//I'm making fx system decals have a very short lifetime.
+		CG_AddGhoul2Mark( td->shader, td->size, tr.endpos, end, tr.entityNum, cent->lerpOrigin, cent->lerpAngles[YAW],
+			cent->ghoul2, cent->modelScale, Q_irand( 2000, 4000 ) );
+		// I'm making fx system decals have a very short lifetime.
 	}
 }
 
-static void CG_DebugBoxLines(vec3_t mins, vec3_t maxs, int duration)
-{
-	vec3_t start;
-	vec3_t end;
-	vec3_t vert;
-
+static void CG_DebugBoxLines( vec3_t mins, vec3_t maxs, int duration ) {
+	vec3_t start, end, vert;
 	float x = maxs[0] - mins[0];
 	float y = maxs[1] - mins[1];
 
@@ -305,21 +288,21 @@ static int CG_RagCallback(int callType)
 	{
 	case RAG_CALLBACK_DEBUGBOX:
 		{
-			ragCallbackDebugBox_t *callData = (ragCallbackDebugBox_t *)cg.sharedBuffer;
+			ragCallbackDebugBox_t *callData = &cg.sharedBuffer.rcbDebugBox;
 
 			CG_DebugBoxLines(callData->mins, callData->maxs, callData->duration);
 		}
 		break;
 	case RAG_CALLBACK_DEBUGLINE:
 		{
-			ragCallbackDebugLine_t *callData = (ragCallbackDebugLine_t *)cg.sharedBuffer;
+			ragCallbackDebugLine_t *callData = &cg.sharedBuffer.rcbDebugLine;
 
 			CG_TestLine(callData->start, callData->end, callData->time, callData->color, callData->radius);
 		}
 		break;
 	case RAG_CALLBACK_BONESNAP:
 		{
-			ragCallbackBoneSnap_t *callData = (ragCallbackBoneSnap_t *)cg.sharedBuffer;
+			ragCallbackBoneSnap_t *callData = &cg.sharedBuffer.rcbBoneSnap;
 			centity_t *cent = &cg_entities[callData->entNum];
 			int snapSound = trap->S_RegisterSound(va("sound/player/bodyfall_human%i.wav", Q_irand(1, 3)));
 
@@ -330,7 +313,7 @@ static int CG_RagCallback(int callType)
 	case RAG_CALLBACK_BONEINSOLID:
 #if 0
 		{
-			ragCallbackBoneInSolid_t *callData = (ragCallbackBoneInSolid_t *)cg.sharedBuffer;
+			ragCallbackBoneInSolid_t *callData = &cg.sharedBuffer.rcbBoneInSolid;
 
 			if (callData->solidCount > 16)
 			{ //don't bother if we're just tapping into solidity, we'll probably recover on our own
@@ -347,7 +330,7 @@ static int CG_RagCallback(int callType)
 		break;
 	case RAG_CALLBACK_TRACELINE:
 		{
-			ragCallbackTraceLine_t *callData = (ragCallbackTraceLine_t *)cg.sharedBuffer;
+			ragCallbackTraceLine_t *callData = &cg.sharedBuffer.rcbTraceLine;
 
 			CG_Trace(&callData->tr, callData->start, callData->mins, callData->maxs,
 				callData->end, callData->ignore, callData->mask);
@@ -361,23 +344,19 @@ static int CG_RagCallback(int callType)
 	return 0;
 }
 
-static void C_ImpactMark(void)
-{
-	TCGImpactMark	*data = (TCGImpactMark *)cg.sharedBuffer;
+static void C_ImpactMark( void ) {
+	TCGImpactMark *data = &cg.sharedBuffer.impactMark;
 
-	/*
-	CG_ImpactMark((int)arg0, (const float *)arg1, (const float *)arg2, (float)arg3,
-		(float)arg4, (float)arg5, (float)arg6, (float)arg7, qtrue, (float)arg8, qfalse);
-	*/
-	CG_ImpactMark(data->mHandle, data->mPoint, data->mAngle, data->mRotation,
-		data->mRed, data->mGreen, data->mBlue, data->mAlphaStart, qtrue, data->mSizeStart, qfalse);
+//	CG_ImpactMark( (int)arg0, (const float *)arg1, (const float *)arg2, (float)arg3, (float)arg4, (float)arg5, (float)arg6,
+//		(float)arg7, qtrue, (float)arg8, qfalse );
+
+	CG_ImpactMark( data->mHandle, data->mPoint, data->mAngle, data->mRotation, data->mRed, data->mGreen, data->mBlue,
+		data->mAlphaStart, qtrue, data->mSizeStart, qfalse );
 }
 
-void CG_MiscEnt(void)
-{
-	int i;
-	int modelIndex;
-	TCGMiscEnt *data = (TCGMiscEnt *)cg.sharedBuffer;
+void CG_MiscEnt( void ) {
+	int i, modelIndex;
+	TCGMiscEnt *data = &cg.sharedBuffer.miscEnt;
 	cg_staticmodel_t *staticmodel;
 
 	if( cgs.numMiscStaticModels >= MAX_STATIC_MODELS ) {
@@ -456,89 +435,6 @@ int					cg_numpermanents = 0;
 weaponInfo_t		cg_weapons[MAX_WEAPONS];
 itemInfo_t			cg_items[MAX_ITEMS];
 
-
-static void CG_SVRunningChange( void ) {
-	cgs.localServer = sv_running.integer;
-}
-
-static void CG_ForceModelChange( void ) {
-	int i;
-
-	for ( i=0; i<MAX_CLIENTS; i++ ) {
-		const char *clientInfo = CG_ConfigString( CS_PLAYERS+i );
-
-		if ( !VALIDSTRING( clientInfo ) )
-			continue;
-
-		CG_NewClientInfo( i, qtrue );
-	}
-}
-
-static void CG_TeamOverlayChange( void ) {
-	// If team overlay is on, ask for updates from the server.  If its off,
-	// let the server know so we don't receive it
-	if ( cg_drawTeamOverlay.integer > 0 && cgs.gametype >= GT_SINGLE_PLAYER)
-		trap->Cvar_Set( "teamoverlay", "1" );
-	else
-		trap->Cvar_Set( "teamoverlay", "0" );
-}
-
-typedef struct cvarTable_s {
-	vmCvar_t	*vmCvar;
-	char		*cvarName;
-	char		*defaultString;
-	void		(*update)( void );
-	int			cvarFlags;
-} cvarTable_t;
-
-#define XCVAR_DECL
-	#include "cg_xcvar.h"
-#undef XCVAR_DECL
-
-static cvarTable_t cvarTable[] = {
-	#define XCVAR_LIST
-		#include "cg_xcvar.h"
-	#undef XCVAR_LIST
-};
-static int cvarTableSize = ARRAY_LEN( cvarTable );
-
-/*
-=================
-CG_RegisterCvars
-=================
-*/
-void CG_RegisterCvars( void ) {
-	int			i;
-	cvarTable_t	*cv;
-
-	for ( i=0, cv=cvarTable; i<cvarTableSize; i++, cv++ ) {
-		trap->Cvar_Register( cv->vmCvar, cv->cvarName, cv->defaultString, cv->cvarFlags );
-		if ( cv->update )
-			cv->update();
-	}
-}
-
-/*
-=================
-CG_UpdateCvars
-=================
-*/
-void CG_UpdateCvars( void ) {
-	int			i;
-	cvarTable_t	*cv;
-
-	for ( i=0, cv=cvarTable; i<cvarTableSize; i++, cv++ ) {
-		if ( cv->vmCvar ) {
-			int modCount = cv->vmCvar->modificationCount;
-			trap->Cvar_Update( cv->vmCvar );
-			if ( cv->vmCvar->modificationCount != modCount ) {
-				if ( cv->update )
-					cv->update();
-			}
-		}
-	}
-}
-
 int CG_CrosshairPlayer( void ) {
 	if ( cg.time > (cg.crosshairClientTime + 1000) )
 		return -1;
@@ -610,7 +506,7 @@ static void CG_RegisterItemSounds( int itemNum ) {
 
 		len = s-start;
 		if (len >= MAX_QPATH || len < 5) {
-			trap->Error( ERR_DROP, "PrecacheItem: %s has bad precache string", 
+			trap->Error( ERR_DROP, "PrecacheItem: %s has bad precache string",
 				item->classname);
 			return;
 		}
@@ -636,7 +532,7 @@ static void CG_RegisterItemSounds( int itemNum ) {
 
 		len = s-start;
 		if (len >= MAX_QPATH || len < 5) {
-			trap->Error( ERR_DROP, "PrecacheItem: %s has bad precache string", 
+			trap->Error( ERR_DROP, "PrecacheItem: %s has bad precache string",
 				item->classname);
 			return;
 		}
@@ -812,7 +708,7 @@ static void CG_RegisterSounds( void ) {
 	trap->R_RegisterShader( "gfx/effects/saberFlare" );
 
 	trap->R_RegisterShader( "powerups/ysalimarishell" );
-	
+
 	trap->R_RegisterShader( "gfx/effects/forcePush" );
 
 	trap->R_RegisterShader( "gfx/misc/red_dmgshield" );
@@ -1066,7 +962,6 @@ static void CG_RegisterSounds( void ) {
 	}
 
 	// only register the items that the server says we need
-	//Raz: Fixed buffer overflow
 	Q_strncpyz(items, CG_ConfigString(CS_ITEMS), sizeof(items));
 
 	for ( i = 1 ; i < bg_numItems ; i++ ) {
@@ -1151,7 +1046,7 @@ static void CG_RegisterSounds( void ) {
 	// FIXME: only needed with item
 	cgs.media.deploySeeker = trap->S_RegisterSound ("sound/chars/seeker/misc/hiss");
 	cgs.media.medkitSound = trap->S_RegisterSound ("sound/items/use_bacta.wav");
-	
+
 	cgs.media.winnerSound = trap->S_RegisterSound( "sound/chars/protocol/misc/40MOM006" );
 	cgs.media.loserSound = trap->S_RegisterSound( "sound/chars/protocol/misc/40MOM010" );
 }
@@ -1159,7 +1054,7 @@ static void CG_RegisterSounds( void ) {
 
 //-------------------------------------
 // CG_RegisterEffects
-// 
+//
 // Handles precaching all effect files
 //	and any shader, model, or sound
 //	files an effect may use.
@@ -1170,11 +1065,11 @@ static void CG_RegisterEffects( void )
 	const char	*effectName;
 	int			i;
 
-	for ( i = 1 ; i < MAX_FX ; i++ ) 
+	for ( i = 1 ; i < MAX_FX ; i++ )
 	{
 		effectName = CG_ConfigString( CS_EFFECTS + i );
 
-		if ( !effectName[0] ) 
+		if ( !effectName[0] )
 		{
 			break;
 		}
@@ -1269,7 +1164,7 @@ static void CG_RegisterGraphics( void ) {
 	memset( &cg.refdef, 0, sizeof( cg.refdef ) );
 	trap->R_ClearScene();
 
-	CG_LoadingString( cgs.mapname );        
+	CG_LoadingString( cgs.mapname );
 
 	trap->R_LoadWorld( cgs.mapname );
 
@@ -1326,7 +1221,7 @@ static void CG_RegisterGraphics( void ) {
 	cgs.effects.mStunBatonFleshImpact = trap->FX_RegisterEffect("stunBaton/flesh_impact.efx");
 	cgs.effects.mAltDetonate = trap->FX_RegisterEffect("demp2/altDetonate.efx");
 	cgs.effects.mSparksExplodeNoSound = trap->FX_RegisterEffect("sparks/spark_exp_nosnd");
-	cgs.effects.mTripMineLaster = trap->FX_RegisterEffect("tripMine/laser.efx");
+	cgs.effects.mTripMineLaser = trap->FX_RegisterEffect("tripMine/laser.efx");
 	cgs.effects.mEmplacedMuzzleFlash = trap->FX_RegisterEffect( "effects/emplaced/muzzle_flash" );
 	cgs.effects.mConcussionAltRing = trap->FX_RegisterEffect("concussion/alt_ring");
 
@@ -1407,7 +1302,7 @@ static void CG_RegisterGraphics( void ) {
 			cgs.media.redFlagModel = trap->R_RegisterModel( "models/flags/r_flag.md3" );
 			cgs.media.blueFlagModel = trap->R_RegisterModel( "models/flags/b_flag.md3" );
 		}
-		else
+		else if(cgs.gametype == GT_CTY)
 		{
 			cgs.media.redFlagModel = trap->R_RegisterModel( "models/flags/r_flag_ysal.md3" );
 			cgs.media.blueFlagModel = trap->R_RegisterModel( "models/flags/b_flag_ysal.md3" );
@@ -1423,13 +1318,6 @@ static void CG_RegisterGraphics( void ) {
 		trap->R_RegisterShaderNoMip( "gfx/hud/mpi_bflag" );
 
 		trap->R_RegisterShaderNoMip("gfx/2d/net.tga");
-
-		cgs.media.flagPoleModel = trap->R_RegisterModel( "models/flag2/flagpole.md3" );
-		cgs.media.flagFlapModel = trap->R_RegisterModel( "models/flag2/flagflap3.md3" );
-
-		cgs.media.redFlagBaseModel = trap->R_RegisterModel( "models/mapobjects/flagbase/red_base.md3" );
-		cgs.media.blueFlagBaseModel = trap->R_RegisterModel( "models/mapobjects/flagbase/blue_base.md3" );
-		cgs.media.neutralFlagBaseModel = trap->R_RegisterModel( "models/mapobjects/flagbase/ntrl_base.md3" );
 	}
 
 	if ( cgs.gametype >= GT_TEAM || com_buildScript.integer ) {
@@ -1612,7 +1500,7 @@ Ghoul2 Insert Start
 		char			temp[MAX_QPATH];
 
 		bspName = CG_ConfigString( CS_BSP_MODELS+i );
-		if ( !bspName[0] ) 
+		if ( !bspName[0] )
 		{
 			break;
 		}
@@ -1620,7 +1508,7 @@ Ghoul2 Insert Start
 		trap->CM_LoadMap( bspName, qtrue );
 		cgs.inlineDrawModel[breakPoint] = trap->R_RegisterModel( bspName );
 		trap->R_ModelBounds( cgs.inlineDrawModel[breakPoint], mins, maxs );
-		for ( j = 0 ; j < 3 ; j++ ) 
+		for ( j = 0 ; j < 3 ; j++ )
 		{
 			cgs.inlineModelMidpoints[breakPoint][j] = mins[j] + 0.5 * ( maxs[j] - mins[j] );
 		}
@@ -1634,7 +1522,7 @@ Ghoul2 Insert Start
 				break;
 			}
 			trap->R_ModelBounds( cgs.inlineDrawModel[breakPoint], mins, maxs );
-			for ( j = 0 ; j < 3 ; j++ ) 
+			for ( j = 0 ; j < 3 ; j++ )
 			{
 				cgs.inlineModelMidpoints[breakPoint][j] = mins[j] + 0.5 * ( maxs[j] - mins[j] );
 			}
@@ -1693,36 +1581,17 @@ Ghoul2 Insert End
 	cgs.media.campShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/camp.tga");
 	cgs.media.followShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/follow.tga");
 	cgs.media.defendShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/defend.tga");
-	cgs.media.teamLeaderShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/team_leader.tga");
 	cgs.media.retrieveShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/retrieve.tga");
 	cgs.media.escortShader = trap->R_RegisterShaderNoMip("ui/assets/statusbar/escort.tga");
 	cgs.media.cursor = trap->R_RegisterShaderNoMip( "menu/art/3_cursor2" );
 	cgs.media.sizeCursor = trap->R_RegisterShaderNoMip( "ui/assets/sizecursor.tga" );
 	cgs.media.selectCursor = trap->R_RegisterShaderNoMip( "ui/assets/selectcursor.tga" );
-	cgs.media.flagShaders[0] = trap->R_RegisterShaderNoMip("ui/assets/statusbar/flag_in_base.tga");
-	cgs.media.flagShaders[1] = trap->R_RegisterShaderNoMip("ui/assets/statusbar/flag_capture.tga");
-	cgs.media.flagShaders[2] = trap->R_RegisterShaderNoMip("ui/assets/statusbar/flag_missing.tga");
 
 	cgs.media.halfShieldModel	= trap->R_RegisterModel ( "models/weaphits/testboom.md3" );
 	cgs.media.halfShieldShader	= trap->R_RegisterShader( "halfShieldShell" );
 
 	trap->FX_RegisterEffect("force/force_touch");
-
-	CG_ClearParticles ();
-/*
-	for (i=1; i<MAX_PARTICLES_AREAS; i++)
-	{
-		{
-			int rval;
-
-			rval = CG_NewParticleArea ( CS_PARTICLES + i);
-			if (!rval)
-				break;
-		}
-	}
-*/
 }
-
 
 const char *CG_GetStringEdString(char *refSection, char *refName)
 {
@@ -1744,8 +1613,8 @@ void CG_SiegeCountCvars( void )
 	trap->Cvar_Set( "ui_tm1_cnt",va("%d",CG_GetTeamNonScoreCount(TEAM_RED )));
 	trap->Cvar_Set( "ui_tm2_cnt",va("%d",CG_GetTeamNonScoreCount(TEAM_BLUE )));
 	trap->Cvar_Set( "ui_tm3_cnt",va("%d",CG_GetTeamNonScoreCount(TEAM_SPECTATOR )));
-	
-	// This is because the only way we can match up classes is by the gfx handle. 
+
+	// This is because the only way we can match up classes is by the gfx handle.
 	classGfx[0] = trap->R_RegisterShaderNoMip("gfx/mp/c_icon_infantry");
 	classGfx[1] = trap->R_RegisterShaderNoMip("gfx/mp/c_icon_heavy_weapons");
 	classGfx[2] = trap->R_RegisterShaderNoMip("gfx/mp/c_icon_demolitionist");
@@ -1769,7 +1638,7 @@ void CG_SiegeCountCvars( void )
 
 }
 
-/*																																			
+/*
 =======================
 CG_BuildSpectatorString
 
@@ -1795,7 +1664,7 @@ void CG_BuildSpectatorString(void) {
 }
 
 
-/*																																			
+/*
 ===================
 CG_RegisterClients
 ===================
@@ -1893,7 +1762,7 @@ qboolean CG_Asset_Parse(int handle) {
 	if (Q_stricmp(token.string, "{") != 0) {
 		return qfalse;
 	}
-    
+
 	while ( 1 ) {
 		if (!trap->PC_ReadToken(handle, &token))
 			return qfalse;
@@ -2093,7 +1962,7 @@ void CG_ParseMenu(const char *menuFile) {
 }
 
 
-qboolean CG_Load_Menu(const char **p) 
+qboolean CG_Load_Menu(const char **p)
 {
 
 	char *token;
@@ -2107,7 +1976,7 @@ qboolean CG_Load_Menu(const char **p)
 	while ( 1 ) {
 
 		token = COM_ParseExt((const char **)p, qtrue);
-    
+
 		if (Q_stricmp(token, "}") == 0) {
 			return qtrue;
 		}
@@ -2116,7 +1985,7 @@ qboolean CG_Load_Menu(const char **p)
 			return qfalse;
 		}
 
-		CG_ParseMenu(token); 
+		CG_ParseMenu(token);
 	}
 	return qfalse;
 }
@@ -2234,7 +2103,7 @@ static const char *CG_FeederItemText(float feederID, int index, int column,
 					item = BG_FindItemForPowerup( PW_BLUEFLAG );
 					*handle1 = cg_items[ ITEM_INDEX(item) ].icon;
 				} else {
-					/*	
+					/*
 					if ( info->botSkill > 0 && info->botSkill <= 5 ) {
 						*handle1 = cgs.media.botSkillShaders[ info->botSkill - 1 ];
 					} else if ( info->handicap < 100 ) {
@@ -2280,7 +2149,7 @@ static const char *CG_FeederItemText(float feederID, int index, int column,
 			case 6:
 				if ( sp->ping == -1 ) {
 					return "connecting";
-				} 
+				}
 				return va("%4i", sp->ping);
 			break;
 		}
@@ -2369,7 +2238,7 @@ CG_LoadMenus();
 
 =================
 */
-void CG_LoadMenus(const char *menuFile) 
+void CG_LoadMenus(const char *menuFile)
 {
 	const char	*token;
 	const char	*p;
@@ -2393,7 +2262,7 @@ void CG_LoadMenus(const char *menuFile)
 		}
 	}
 
-	if ( len >= MAX_MENUDEFFILE ) 
+	if ( len >= MAX_MENUDEFFILE )
 	{
 		trap->FS_Close( f );
 		trap->Error( ERR_DROP, S_COLOR_RED "menu file too large: %s is %i, max allowed is %i", menuFile, len, MAX_MENUDEFFILE );
@@ -2402,30 +2271,30 @@ void CG_LoadMenus(const char *menuFile)
 	trap->FS_Read( buf, len, f );
 	buf[len] = 0;
 	trap->FS_Close( f );
-	
+
 	p = buf;
 
 	COM_BeginParseSession ("CG_LoadMenus");
-	while ( 1 ) 
+	while ( 1 )
 	{
 		token = COM_ParseExt( &p, qtrue );
-		if( !token || token[0] == 0 || token[0] == '}') 
+		if( !token || token[0] == 0 || token[0] == '}')
 		{
 			break;
 		}
 
-		if ( Q_stricmp( token, "}" ) == 0 ) 
+		if ( Q_stricmp( token, "}" ) == 0 )
 		{
 			break;
 		}
 
-		if (Q_stricmp(token, "loadmenu") == 0) 
+		if (Q_stricmp(token, "loadmenu") == 0)
 		{
-			if (CG_Load_Menu(&p)) 
+			if (CG_Load_Menu(&p))
 			{
 				continue;
-			} 
-			else 
+			}
+			else
 			{
 				break;
 			}
@@ -2441,7 +2310,7 @@ CG_LoadHudMenu();
 
 =================
 */
-void CG_LoadHudMenu() 
+void CG_LoadHudMenu()
 {
 	const char *hudSet;
 
@@ -2455,7 +2324,7 @@ void CG_LoadHudMenu()
 	cgDC.registerModel					= trap->R_RegisterModel;
 	cgDC.modelBounds					= trap->R_ModelBounds;
 	cgDC.fillRect						= &CG_FillRect;
-	cgDC.drawRect						= &CG_DrawRect;   
+	cgDC.drawRect						= &CG_DrawRect;
 	cgDC.drawSides						= &CG_DrawSides;
 	cgDC.drawTopBottom					= &CG_DrawTopBottom;
 	cgDC.clearScene						= trap->R_ClearScene;
@@ -2491,8 +2360,8 @@ void CG_LoadHudMenu()
 	//cgDC.getBindingBuf				= &trap->Key_GetBindingBuf;
 	//cgDC.keynumToStringBuf			= &trap->Key_KeynumToStringBuf;
 	//cgDC.executeText					= &trap->Cmd_ExecuteText;
-	cgDC.Error							= Com_Error; 
-	cgDC.Print							= Com_Printf; 
+	cgDC.Error							= Com_Error;
+	cgDC.Print							= Com_Printf;
 	cgDC.ownerDrawWidth					= &CG_OwnerDrawWidth;
 	//cgDC.Pause						= &CG_Pause;
 	cgDC.registerSound					= trap->S_RegisterSound;
@@ -2502,13 +2371,13 @@ void CG_LoadHudMenu()
 	cgDC.stopCinematic					= &CG_StopCinematic;
 	cgDC.drawCinematic					= &CG_DrawCinematic;
 	cgDC.runCinematicFrame				= &CG_RunCinematicFrame;
-	
+
 	Init_Display(&cgDC);
 
 	Menu_Reset();
 
 	hudSet = cg_hudFiles.string;
-	if (hudSet[0] == '\0') 
+	if (hudSet[0] == '\0')
 	{
 		hudSet = "ui/jahud.txt";
 	}
@@ -2613,7 +2482,7 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum )
 
 	BG_InitAnimsets(); //clear it out
 
-	trap->RegisterSharedMemory(cg.sharedBuffer);
+	trap->RegisterSharedMemory( cg.sharedBuffer.raw );
 
 	//Load external vehicle data
 	BG_VehicleLoadParms();
@@ -2664,7 +2533,7 @@ Ghoul2 Insert End
 
 	cg.itemSelect = -1;
 	cg.forceSelect = -1;
-	
+
 	// load a few needed things before we do any screen updates
 	cgs.media.charsetShader		= trap->R_RegisterShaderNoMip( "gfx/2d/charsgrid_med" );
 	cgs.media.whiteShader		= trap->R_RegisterShader( "white" );
@@ -2703,7 +2572,7 @@ Ghoul2 Insert End
 	}
 	i = 0;
 
-	// HUD artwork for cycling inventory,weapons and force powers 
+	// HUD artwork for cycling inventory,weapons and force powers
 	cgs.media.weaponIconBackground		= trap->R_RegisterShaderNoMip( "gfx/hud/background");
 	cgs.media.forceIconBackground		= trap->R_RegisterShaderNoMip( "gfx/hud/background_f");
 	cgs.media.inventoryIconBackground	= trap->R_RegisterShaderNoMip( "gfx/hud/background_i");
@@ -2748,7 +2617,6 @@ Ghoul2 Insert End
 
 	CG_InitConsoleCommands();
 
-	//Raz: initialise third person setting
 	cg.renderingThirdPerson = cg_thirdPerson.integer;
 
 	cg.weaponSelect = WP_BRYAR_PISTOL;
@@ -2834,7 +2702,6 @@ Ghoul2 Insert End
 
 	CG_ParseEntitiesFromString();
 
-	//Raz: warn for poor settings
 	trap->Cvar_VariableStringBuffer( "rate", buf, sizeof( buf ) );
 	if ( atoi( buf ) == 4000 )
 		trap->Print( "^3WARNING: Default /rate value detected. Suggest typing /rate 25000 for a smoother connection!\n" );
@@ -2864,10 +2731,10 @@ void CG_DestroyAllGhoul2(void)
 //	Com_Printf("... CGameside GHOUL2 Cleanup\n");
 	while (i < MAX_GENTITIES)
 	{ //free all dynamically allocated npc client info structs and ghoul2 instances
-		CG_KillCEntityG2(i);	
+		CG_KillCEntityG2(i);
 		i++;
 	}
-	
+
 	//Clean the weapon instances
 	CG_ShutDownG2Weapons();
 
@@ -2898,7 +2765,7 @@ CG_Shutdown
 Called before every level change or subsystem restart
 =================
 */
-void CG_Shutdown( void ) 
+void CG_Shutdown( void )
 {
 	BG_ClearAnimsets(); //free all dynamic allocations made through the engine
 
@@ -2923,7 +2790,7 @@ void CG_Shutdown( void )
 CG_NextForcePower_f
 ===============
 */
-void CG_NextForcePower_f( void ) 
+void CG_NextForcePower_f( void )
 {
 	int current;
 	usercmd_t cmd;
@@ -2970,7 +2837,7 @@ void CG_NextForcePower_f( void )
 CG_PrevForcePower_f
 ===============
 */
-void CG_PrevForcePower_f( void ) 
+void CG_PrevForcePower_f( void )
 {
 	int current;
 	usercmd_t cmd;
@@ -3084,7 +2951,7 @@ static qboolean CG_IncomingConsoleCommand( void ) {
 	//qfalse to not execute anything, or you can fill conCommand in with something valid and return 0
 	//in order to have that string executed in place. Some example code:
 #if 0
-	TCGIncomingConsoleCommand *icc = (TCGIncomingConsoleCommand *)cg.sharedBuffer;
+	TCGIncomingConsoleCommand *icc = &cg.sharedBuffer.icc;
 	if ( strstr( icc->conCommand, "wait" ) )
 	{ //filter out commands contaning wait
 		Com_Printf( "You can't use commands containing the string wait with MyMod v1.0\n" );
@@ -3127,7 +2994,7 @@ static void CG_MapChange( void ) {
 }
 
 static void CG_AutomapInput( void ) {
-	autoMapInput_t *autoInput = (autoMapInput_t *)cg.sharedBuffer;
+	autoMapInput_t *autoInput = &cg.sharedBuffer.autoMapInput;
 
 	memcpy( &cg_autoMapInput, autoInput, sizeof( autoMapInput_t ) );
 
@@ -3145,7 +3012,7 @@ static void CG_AutomapInput( void ) {
 }
 
 static void CG_FX_CameraShake( void ) {
-	TCGCameraShake *data = (TCGCameraShake *)cg.sharedBuffer;
+	TCGCameraShake *data = &cg.sharedBuffer.cameraShake;
 	CG_DoCameraShake( data->mOrigin, data->mIntensity, data->mRadius, data->mTime );
 }
 

@@ -23,9 +23,10 @@ This file is part of Jedi Knight 2.
 // this include must remain at the top of every Icarus CPP file
 #include "icarus.h"
 
-
-#pragma warning(disable : 4100)  //unref formal parm
-#pragma warning(disable : 4710)  //member not inlined
+#ifdef _MSC_VER
+	#pragma warning(disable : 4100)  //unref formal parm
+	#pragma warning(disable : 4710)  //member not inlined
+#endif
 
 #include <string.h>
 #include "blockstream.h"
@@ -115,9 +116,9 @@ ReadMember
 -------------------------
 */
 
-int CBlockMember::ReadMember( char **stream, long *streamPos )
+int CBlockMember::ReadMember( char **stream, int *streamPos )
 {
-	m_id = *(int *) (*stream + *streamPos);
+	m_id = *(int *) (*stream + *((int *)streamPos));
 	*streamPos += sizeof( int );
 
 	if ( m_id == ID_RANDOM )
@@ -344,9 +345,9 @@ GetMember
 
 CBlockMember *CBlock::GetMember( int memberNum )
 {
-	if ( memberNum > GetNumMembers()-1 )
+	if ( memberNum >= GetNumMembers() )
 	{
-		return false;
+		return NULL;
 	}
 	return m_members[ memberNum ];
 }
@@ -359,7 +360,7 @@ GetMemberData
 
 void *CBlock::GetMemberData( int memberNum )
 {
-	if ( memberNum > GetNumMembers()-1 )
+	if ( memberNum >= GetNumMembers() )
 	{
 		return NULL;
 	}
@@ -380,7 +381,7 @@ CBlock *CBlock::Duplicate( void )
 	newblock = new CBlock;
 
 	if ( newblock == NULL )
-		return false;
+		return NULL;
 
 	newblock->Create( m_id );
 
@@ -469,7 +470,7 @@ long CBlockStream::GetLong( void )
 {
 	long data;
 
-	data = *(long *) (m_stream + m_streamPos);
+	data = *(int *) (m_stream + m_streamPos);
 	m_streamPos += sizeof( data );
 
 	return data;
@@ -547,20 +548,19 @@ int CBlockStream::Create( char *filename )
 	memset(newName, 0, sizeof(newName));
 
 	//Strip the extension and add the BLOCK_EXT extension
-	strcpy((char *) m_fileName, filename);
-	StripExtension( (char *) m_fileName, (char *) &newName );
-	strcat((char *) newName, IBI_EXT);
+	StripExtension( filename, newName );
+	Q_strcat(newName, sizeof(newName), IBI_EXT);
 
 	//Recover that as the active filename
-	strcpy(m_fileName, newName);
+	Q_strncpyz(m_fileName, newName, sizeof(m_fileName));
 
-	if ( ((m_fileHandle = fopen(m_fileName, "wb")) == NULL) )
+	if ( (m_fileHandle = fopen(m_fileName, "wb")) == NULL )
 	{
 		return false;
 	}
 
-	fwrite( id_header, 1, sizeof(id_header), m_fileHandle );
-	fwrite( &version, 1, sizeof(version), m_fileHandle );
+	fwrite( id_header, IBI_HEADER_ID_LENGTH, 1, m_fileHandle );
+	fwrite( &version, sizeof(version), 1, m_fileHandle );
 
 	return true;
 }
@@ -669,7 +669,7 @@ Open
 
 int CBlockStream::Open( char *buffer, long size )
 {
-	char	id_header[sizeof(IBI_HEADER_ID)];
+	char	id_header[IBI_HEADER_ID_LENGTH];
 	float	version;
 	
 	Init();
@@ -678,7 +678,7 @@ int CBlockStream::Open( char *buffer, long size )
 
 	m_stream = buffer;
 
-	for ( int i = 0; i < sizeof( id_header ); i++ )
+	for ( size_t i = 0; i < sizeof( id_header ); i++ )
 	{
 		id_header[i] = GetChar();
 	}

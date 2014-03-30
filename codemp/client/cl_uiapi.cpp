@@ -12,7 +12,7 @@
 #include "FXExport.h"
 #include "FxUtil.h"
 
-extern CMiniHeap *G2VertSpaceClient;
+extern IHeapAllocator *G2VertSpaceClient;
 extern botlib_export_t *botlib_export;
 
 // ui interface
@@ -28,9 +28,12 @@ void UIVM_Init( qboolean inGameLoad ) {
 		VM_Call( uivm, UI_INIT, inGameLoad );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->Init( inGameLoad );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void UIVM_Shutdown( void ) {
@@ -39,10 +42,13 @@ void UIVM_Shutdown( void ) {
 		VM_Call( uivm, UI_MENU_RESET );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->Shutdown();
 	uie->MenuReset();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void UIVM_KeyEvent( int key, qboolean down ) {
@@ -50,9 +56,12 @@ void UIVM_KeyEvent( int key, qboolean down ) {
 		VM_Call( uivm, UI_KEY_EVENT, key, down );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->KeyEvent( key, down );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void UIVM_MouseEvent( int dx, int dy ) {
@@ -60,9 +69,12 @@ void UIVM_MouseEvent( int dx, int dy ) {
 		VM_Call( uivm, UI_MOUSE_EVENT, dx, dy );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->MouseEvent( dx, dy );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void UIVM_Refresh( int realtime ) {
@@ -70,18 +82,25 @@ void UIVM_Refresh( int realtime ) {
 		VM_Call( uivm, UI_REFRESH, realtime );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->Refresh( realtime );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 qboolean UIVM_IsFullscreen( void ) {
 	if ( uivm->isLegacy ) {
 		return (qboolean)VM_Call( uivm, UI_IS_FULLSCREEN );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
-	return uie->IsFullscreen();
+	qboolean r = uie->IsFullscreen();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void UIVM_SetActiveMenu( uiMenuCommand_t menu ) {
@@ -89,27 +108,37 @@ void UIVM_SetActiveMenu( uiMenuCommand_t menu ) {
 		VM_Call( uivm, UI_SET_ACTIVE_MENU, menu );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->SetActiveMenu( menu );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 qboolean UIVM_ConsoleCommand( int realTime ) {
 	if ( uivm->isLegacy ) {
 		return (qboolean)VM_Call( uivm, UI_CONSOLE_COMMAND, realTime );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
-	return uie->ConsoleCommand( realTime );
+	qboolean r = uie->ConsoleCommand( realTime );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 void UIVM_DrawConnectScreen( qboolean overlay ) {
 	if ( uivm->isLegacy ) {
 		VM_Call( uivm, UI_DRAW_CONNECT_SCREEN, overlay );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = uivm;
 
 	uie->DrawConnectScreen( overlay );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 //
@@ -118,7 +147,7 @@ void UIVM_DrawConnectScreen( qboolean overlay ) {
 //
 
 static int FloatAsInt( float f ) {
-	floatint_t fi;
+	byteAlias_t fi;
 	fi.f = f;
 	return fi.i;
 }
@@ -129,7 +158,7 @@ static int CL_Milliseconds( void ) {
 	return Sys_Milliseconds();
 }
 
-static void CL_Cvar_Get( const char *var_name, const char *value, int flags ) {
+static void CL_Cvar_Get( const char *var_name, const char *value, uint32_t flags ) {
 	Cvar_Register( NULL, var_name, value, flags );
 }
 
@@ -177,7 +206,7 @@ static int GetConfigString(int index, char *buf, int size)
 	}
 
 	Q_strncpyz( buf, cl.gameState.stringData+offset, size);
- 
+
 	return qtrue;
 }
 
@@ -193,7 +222,7 @@ static void Key_GetBindingBuf( int keynum, char *buf, int buflen ) {
 	}
 }
 
-static void Key_KeynumToStringBuf( int keynum, char *buf, int buflen ) 
+static void Key_KeynumToStringBuf( int keynum, char *buf, int buflen )
 {
 	const char *psKeyName = Key_KeynumToString( keynum/*, qtrue */);
 
@@ -261,7 +290,7 @@ static int CL_G2API_InitGhoul2Model( void **ghoul2Ptr, const char *fileName, int
 
 static qboolean CL_G2API_SetSkin( void *ghoul2, int modelIndex, qhandle_t customSkin, qhandle_t renderSkin ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_SetSkin( &g2[modelIndex], customSkin, renderSkin );
+	return re->G2API_SetSkin( g2, modelIndex, customSkin, renderSkin );
 }
 
 static void CL_G2API_CollisionDetect( CollisionRecord_t *collRecMap, void* ghoul2, const vec3_t angles, const vec3_t position, int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, int traceFlags, int useLod, float fRadius ) {
@@ -289,7 +318,7 @@ static qboolean CL_G2API_SetBoneAnim( void *ghoul2, const int modelIndex, const 
 
 static qboolean CL_G2API_GetBoneAnim( void *ghoul2, const char *boneName, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int *modelList, const int modelIndex ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_GetBoneAnim( &g2[modelIndex], boneName, currentTime, currentFrame, startFrame, endFrame, flags, animSpeed, modelList );
+	return re->G2API_GetBoneAnim( g2, modelIndex, boneName, currentTime, currentFrame, startFrame, endFrame, flags, animSpeed, modelList );
 }
 
 static qboolean CL_G2API_GetBoneFrame( void *ghoul2, const char *boneName, const int currentTime, float *currentFrame, int *modelList, const int modelIndex ) {
@@ -297,7 +326,7 @@ static qboolean CL_G2API_GetBoneFrame( void *ghoul2, const char *boneName, const
 	int iDontCare1 = 0, iDontCare2 = 0, iDontCare3 = 0;
 	float fDontCare1 = 0;
 
-	return re->G2API_GetBoneAnim(&g2[modelIndex], boneName, currentTime, currentFrame, &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, modelList);
+	return re->G2API_GetBoneAnim(g2, modelIndex, boneName, currentTime, currentFrame, &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, modelList);
 }
 
 static void CL_G2API_GetGLAName( void *ghoul2, int modelIndex, char *fillBuf ) {
@@ -416,7 +445,7 @@ static qboolean CL_G2API_IKMove( void *ghoul2, int time, sharedIKMoveParams_t *p
 
 static void CL_G2API_GetSurfaceName( void *ghoul2, int surfNumber, int modelIndex, char *fillBuf ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	char *tmp = re->G2API_GetSurfaceName( &g2[modelIndex], surfNumber );
+	char *tmp = re->G2API_GetSurfaceName( g2, modelIndex, surfNumber );
 	strcpy( fillBuf, tmp );
 }
 
@@ -430,6 +459,14 @@ static qboolean CL_G2API_AttachG2Model( void *ghoul2From, int modelIndexFrom, vo
 static void CL_Key_SetCatcher( int catcher ) {
 	// Don't allow the ui module to close the console
 	Key_SetCatcher( catcher | ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) );
+}
+
+static void UIVM_Cvar_Set( const char *var_name, const char *value ) {
+	Cvar_VM_Set( var_name, value, VM_UI );
+}
+
+static void UIVM_Cvar_SetValue( const char *var_name, float value ) {
+	Cvar_VM_SetValue( var_name, value, VM_UI );
 }
 
 // legacy syscall
@@ -505,7 +542,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 		return Sys_Milliseconds();
 
 	case UI_CVAR_REGISTER:
-		Cvar_Register( (vmCvar_t *)VMA(1), (const char *)VMA(2), (const char *)VMA(3), args[4] ); 
+		Cvar_Register( (vmCvar_t *)VMA(1), (const char *)VMA(2), (const char *)VMA(3), args[4] );
 		return 0;
 
 	case UI_CVAR_UPDATE:
@@ -513,7 +550,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 		return 0;
 
 	case UI_CVAR_SET:
-		Cvar_Set( (const char *)VMA(1), (const char *)VMA(2) );
+		Cvar_VM_Set( (const char *)VMA(1), (const char *)VMA(2), VM_UI );
 		return 0;
 
 	case UI_CVAR_VARIABLEVALUE:
@@ -524,7 +561,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 		return 0;
 
 	case UI_CVAR_SETVALUE:
-		Cvar_SetValue( (const char *)VMA(1), VMF(2) );
+		Cvar_VM_SetValue( (const char *)VMA(1), VMF(2), VM_UI );
 		return 0;
 
 	case UI_CVAR_RESET:
@@ -554,7 +591,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 		return FS_FOpenFileByMode( (const char *)VMA(1), (int *)VMA(2), (fsMode_t)args[3] );
 
 	case UI_FS_READ:
-		FS_Read2( VMA(1), args[2], args[3] );
+		FS_Read( VMA(1), args[2], args[3] );
 		return 0;
 
 	case UI_FS_WRITE:
@@ -667,7 +704,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 
 	case UI_GETCLIENTSTATE:
 		CL_GetClientState( (uiClientState_t *)VMA(1) );
-		return 0;		
+		return 0;
 
 	case UI_GETGLCONFIG:
 		CL_GetGlconfig( (glconfig_t *)VMA(1) );
@@ -856,7 +893,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 		return re->G2API_GetBoltMatrix(*((CGhoul2Info_v *)args[1]), args[2], args[3], (mdxaBone_t *)VMA(4), (const float *)VMA(5),(const float *)VMA(6), args[7], (qhandle_t *)VMA(8), (float *)VMA(9));
 
 	case UI_G2_GETBOLT_NOREC_NOROT:
-		//RAZFIXME: cgame reconstructs bolt matrix, why is this different?
+		// cgame reconstructs bolt matrix, why is this different?
 		re->G2API_BoltMatrixReconstruction( qfalse );//gG2_GBMNoReconstruct = qtrue;
 		re->G2API_BoltMatrixSPMethod( qtrue );//gG2_GBMUseSPMethod = qtrue;
 		return re->G2API_GetBoltMatrix(*((CGhoul2Info_v *)args[1]), args[2], args[3], (mdxaBone_t *)VMA(4), (const float *)VMA(5),(const float *)VMA(6), args[7], (qhandle_t *)VMA(8), (float *)VMA(9));
@@ -890,7 +927,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 			CGhoul2Info_v &g2 = *((CGhoul2Info_v *)args[1]);
 			int modelIndex = args[10];
 
-			return re->G2API_GetBoneAnim(&g2[modelIndex], (const char*)VMA(2), args[3], (float *)VMA(4), (int *)VMA(5), (int *)VMA(6), (int *)VMA(7), (float *)VMA(8), (int *)VMA(9));
+			return re->G2API_GetBoneAnim(g2, modelIndex, (const char*)VMA(2), args[3], (float *)VMA(4), (int *)VMA(5), (int *)VMA(6), (int *)VMA(7), (float *)VMA(8), (int *)VMA(9));
 		}
 
 	case UI_G2_GETBONEFRAME:
@@ -900,7 +937,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 			int iDontCare1 = 0, iDontCare2 = 0, iDontCare3 = 0;
 			float fDontCare1 = 0;
 
-			return re->G2API_GetBoneAnim(&g2[modelIndex], (const char*)VMA(2), args[3], (float *)VMA(4), &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, (int *)VMA(5));
+			return re->G2API_GetBoneAnim(g2, modelIndex, (const char*)VMA(2), args[3], (float *)VMA(4), &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, (int *)VMA(5));
 		}
 
 	case UI_G2_GETGLANAME:
@@ -986,7 +1023,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 
 			CGhoul2Info_v &g2 = *((CGhoul2Info_v *)args[1]);
 
-			local = re->G2API_GetSurfaceName(&g2[modelindex], args[2]);
+			local = re->G2API_GetSurfaceName(g2, modelindex, args[2]);
 			if (local)
 			{
 				strcpy(point, local);
@@ -999,7 +1036,7 @@ intptr_t CL_UISystemCalls( intptr_t *args ) {
 			CGhoul2Info_v &g2 = *((CGhoul2Info_v *)args[1]);
 			int modelIndex = args[2];
 
-			return re->G2API_SetSkin(&g2[modelIndex], args[3], args[4]);
+			return re->G2API_SetSkin(g2, modelIndex, args[3], args[4]);
 		}
 
 	case UI_G2_ATTACHG2MODEL:
@@ -1038,8 +1075,8 @@ void CL_BindUI( void ) {
 		uii.Cvar_InfoStringBuffer				= Cvar_InfoStringBuffer;
 		uii.Cvar_Register						= Cvar_Register;
 		uii.Cvar_Reset							= Cvar_Reset;
-		uii.Cvar_Set							= Cvar_Set;
-		uii.Cvar_SetValue						= Cvar_SetValue;
+		uii.Cvar_Set							= UIVM_Cvar_Set;
+		uii.Cvar_SetValue						= UIVM_Cvar_SetValue;
 		uii.Cvar_Update							= Cvar_Update;
 		uii.Cvar_VariableStringBuffer			= Cvar_VariableStringBuffer;
 		uii.Cvar_VariableValue					= Cvar_VariableValue;
@@ -1051,7 +1088,7 @@ void CL_BindUI( void ) {
 		uii.FS_Close							= FS_FCloseFile;
 		uii.FS_GetFileList						= FS_GetFileList;
 		uii.FS_Open								= FS_FOpenFileByMode;
-		uii.FS_Read								= FS_Read2;
+		uii.FS_Read								= FS_Read;
 		uii.FS_Write							= FS_Write;
 
 		uii.GetClientState						= CL_GetClientState;
@@ -1180,7 +1217,7 @@ void CL_BindUI( void ) {
 			Com_Error( ERR_FATAL, "GetGameAPI failed on %s", dllName );
 		}
 		uie = ret;
-		
+
 		return;
 	}
 

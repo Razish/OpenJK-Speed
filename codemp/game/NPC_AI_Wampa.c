@@ -117,7 +117,7 @@ void Wampa_Patrol( void )
 	Wampa_CheckRoar( NPCS.NPC );
 	TIMER_Set( NPCS.NPC, "lookForNewEnemy", Q_irand( 5000, 15000 ) );
 }
- 
+
 /*
 -------------------------
 Wampa_Move
@@ -133,7 +133,7 @@ void Wampa_Move( qboolean visible )
 		{//pick correct movement speed and anim
 			//run by default
 			NPCS.ucmd.buttons &= ~BUTTON_WALKING;
-			if ( !TIMER_Done( NPCS.NPC, "runfar" ) 
+			if ( !TIMER_Done( NPCS.NPC, "runfar" )
 				|| !TIMER_Done( NPCS.NPC, "runclose" ) )
 			{//keep running with this anim & speed for a bit
 			}
@@ -169,7 +169,6 @@ void Wampa_Move( qboolean visible )
 }
 
 //---------------------------------------------------------
-//extern void G_Knockdown( gentity_t *self, gentity_t *attacker, const vec3_t pushDir, float strength, qboolean breakSaberLock );
 extern void G_Knockdown( gentity_t *victim );
 extern void G_Dismember( gentity_t *ent, gentity_t *enemy, vec3_t point, int limbType, float limbRollBase, float limbPitchBase, int deathAnim, qboolean postDeath );
 extern int NPC_GetEntsNearBolt( int *radiusEnts, float radius, int boltIndex, vec3_t boltOrg );
@@ -193,12 +192,12 @@ void Wampa_Slash( int boltIndex, qboolean backhand )
 		{
 			continue;
 		}
-		
+
 		if ( radiusEnt == NPCS.NPC )
 		{//Skip the wampa ent
 			continue;
 		}
-		
+
 		if ( radiusEnt->client == NULL )
 		{//must be a client
 			continue;
@@ -371,7 +370,7 @@ void Wampa_Combat( void )
 	}
 	else
 	{
-		float		distance = enemyDist = Distance( NPCS.NPC->r.currentOrigin, NPCS.NPC->enemy->r.currentOrigin );	
+		float		distance = enemyDist = Distance( NPCS.NPC->r.currentOrigin, NPCS.NPC->enemy->r.currentOrigin );
 		qboolean	advance = (qboolean)( distance > (NPCS.NPC->r.maxs[0]+MIN_DISTANCE) ? qtrue : qfalse  );
 		qboolean	doCharge = qfalse;
 
@@ -429,16 +428,15 @@ void Wampa_Combat( void )
 NPC_Wampa_Pain
 -------------------------
 */
-//void NPC_Wampa_Pain( gentity_t *self, gentity_t *inflictor, gentity_t *other, const vec3_t point, int damage, int mod,int hitLoc ) 
-void NPC_Wampa_Pain( gentity_t *self, gentity_t *attacker, int damage ) 
+void NPC_Wampa_Pain( gentity_t *self, gentity_t *attacker, int damage )
 {
 	qboolean hitByWampa = qfalse;
 	if ( attacker&&attacker->client&&attacker->client->NPC_class==CLASS_WAMPA )
 	{
 		hitByWampa = qtrue;
 	}
-	if ( attacker 
-		&& attacker->inuse 
+	if ( attacker
+		&& attacker->inuse
 		&& attacker != self->enemy
 		&& !(attacker->flags&FL_NOTARGET) )
 	{
@@ -446,7 +444,7 @@ void NPC_Wampa_Pain( gentity_t *self, gentity_t *attacker, int damage )
 			|| !self->enemy
 			|| self->enemy->health == 0
 			|| (self->enemy->client&&self->enemy->client->NPC_class == CLASS_WAMPA)
-			|| (!Q_irand(0, 4 ) && DistanceSquared( attacker->r.currentOrigin, self->r.currentOrigin ) < DistanceSquared( self->enemy->r.currentOrigin, self->r.currentOrigin )) ) 
+			|| (!Q_irand(0, 4 ) && DistanceSquared( attacker->r.currentOrigin, self->r.currentOrigin ) < DistanceSquared( self->enemy->r.currentOrigin, self->r.currentOrigin )) )
 		{//if my enemy is dead (or attacked by player) and I'm not still holding/eating someone, turn on the attacker
 			//FIXME: if can't nav to my enemy, take this guy if I can nav to him
 			G_SetEnemy( self, attacker );
@@ -598,7 +596,7 @@ void NPC_BSWampa_Default( void )
 			return;
 		}
 	}
-	else 
+	else
 	{
 		if ( TIMER_Done(NPCS.NPC,"idlenoise") )
 		{

@@ -2,12 +2,17 @@
 #include "qcommon/exe_headers.h"
 
 vm_t *currentVM = NULL; // bk001212
-vm_t *lastVM    = NULL; // bk001212
 
 static const char *vmNames[MAX_VM] = {
 	"jampgame",
 	"cgame",
 	"ui"
+};
+
+const char *vmStrs[MAX_VM] = {
+	"GameVM",
+	"CGameVM",
+	"UIVM",
 };
 
 // VM slots are automatically allocated by VM_Create, and freed by VM_Free
@@ -19,9 +24,25 @@ static const char *vmNames[MAX_VM] = {
 //	cgvm = VM_Restart( cgvm );		// vmTable[VM_CGAME] is recreated, we update the cgvm pointer
 //	VM_Free( cgvm );				// vmTable[VM_CGAME] is deallocated and set to NULL
 //	cgvm = NULL;					// ...so we update the cgvm pointer
-void	*vmHandlesToDelete[MAX_VM];
 
 static vm_t *vmTable[MAX_VM];
+
+#ifdef _DEBUG
+cvar_t	*vm_legacy;
+#endif
+
+/*
+==============
+VM_Init
+==============
+*/
+void VM_Init( void ) {
+#ifdef _DEBUG
+	vm_legacy = Cvar_Get( "vm_legacy", "0", 0 );
+#endif
+
+	memset( vmTable, 0, sizeof( vmTable ) );
+}
 
 /*
 ============
@@ -58,7 +79,7 @@ Dlls will call this directly
 
   For speed, we just grab 15 arguments, and don't worry about exactly
    how many the syscall actually needs; the extra is thrown away.
- 
+
 ============
 */
 intptr_t QDECL VM_DllSyscall( intptr_t arg, ... ) {
@@ -66,14 +87,14 @@ intptr_t QDECL VM_DllSyscall( intptr_t arg, ... ) {
   // rcg010206 - see commentary above
   intptr_t args[16];
   va_list ap;
-  
+
   args[0] = arg;
-  
+
   va_start(ap, arg);
   for (size_t i = 1; i < ARRAY_LEN (args); i++)
     args[i] = va_arg(ap, intptr_t);
   va_end(ap);
-  
+
   return currentVM->legacy.syscall( args );
 #else // original id code
 	return currentVM->legacy.syscall( &arg );
@@ -168,9 +189,9 @@ vm_t *VM_Create( vmSlots_t vmSlot ) {
 
 	// find the module api
 	FS_FindPureDLL( vm->name );
-	Com_Printf( "VM_Create: %s"ARCH_STRING DLL_EXT, vm->name );
 	vm->dllHandle = Sys_LoadGameDll( vm->name, &vm->GetModuleAPI );
 
+	Com_Printf( "VM_Create: %s"ARCH_STRING DLL_EXT, vm->name );
 	if ( vm->dllHandle ) {
 		if ( com_developer->integer )	Com_Printf( " succeeded [0x%X+0x%X]\n", vm->dllHandle, (intptr_t)vm->GetModuleAPI - (intptr_t)vm->dllHandle );
 		else							Com_Printf( " succeeded\n" );
@@ -202,7 +223,6 @@ void VM_Free( vm_t *vm ) {
 	Z_Free( vm );
 
 	currentVM = NULL;
-	lastVM = NULL;
 }
 
 void VM_Clear( void ) {
@@ -210,7 +230,6 @@ void VM_Clear( void ) {
 		VM_Free( vmTable[i] );
 
 	currentVM = NULL;
-	lastVM = NULL;
 }
 
 void VM_Shifted_Alloc( void **ptr, int size )
@@ -277,7 +296,7 @@ void *VM_ExplicitArgPtr( vm_t *vm, intptr_t intValue ) {
 }
 
 float _vmf( intptr_t x ) {
-	floatint_t fi;
+	byteAlias_t fi;
 	fi.i = (int) x;
 	return fi.f;
 }
@@ -305,9 +324,6 @@ an OP_ENTER instruction, which will subtract space for
 locals from sp
 ==============
 */
-#define	MAX_STACK	256
-#define	STACK_MASK	(MAX_STACK-1)
-
 intptr_t QDECL VM_Call( vm_t *vm, int callnum, ... ) {
 	vm_t *oldVM = NULL;
 	intptr_t r = 0;
@@ -320,7 +336,6 @@ intptr_t QDECL VM_Call( vm_t *vm, int callnum, ... ) {
 
 	oldVM = currentVM;
 	currentVM = vm;
-	lastVM = vm;
 
 	//rcg010207 -  see dissertation at top of VM_DllSyscall() in this file.
 	va_list ap;

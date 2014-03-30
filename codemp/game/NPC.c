@@ -8,7 +8,6 @@
 
 extern vec3_t playerMins;
 extern vec3_t playerMaxs;
-//extern void PM_SetAnimFinal(int *torsoAnim,int *legsAnim,int type,int anim,int priority,int *torsoAnimTimer,int *legsAnimTimer,gentity_t *gent);
 extern void G_SoundOnEnt( gentity_t *ent, soundChannel_t channel, const char *soundPath );
 extern void PM_SetTorsoAnimTimer( gentity_t *ent, int *torsoAnimTimer, int time );
 extern void PM_SetLegsAnimTimer( gentity_t *ent, int *legsAnimTimer, int time );
@@ -44,7 +43,7 @@ void CorpsePhysics( gentity_t *self )
 	ClientThink( self->s.number, &NPCS.ucmd );
 	//VectorCopy( self->s.origin, self->s.origin2 );
 	//rww - don't get why this is happening.
-	
+
 	if ( self->client->NPC_class == CLASS_GALAKMECH )
 	{
 		GM_Dying( self );
@@ -123,7 +122,7 @@ void NPC_RemoveBody( gentity_t *self )
 		return;
 	}
 
-	// I don't consider this a hack, it's creative coding . . . 
+	// I don't consider this a hack, it's creative coding . . .
 	// I agree, very creative... need something like this for ATST and GALAKMECH too!
 	if (self->client->NPC_class == CLASS_MARK1)
 	{
@@ -131,11 +130,10 @@ void NPC_RemoveBody( gentity_t *self )
 	}
 
 	// Since these blow up, remove the bounding box.
-	if ( self->client->NPC_class == CLASS_REMOTE 
+	if ( self->client->NPC_class == CLASS_REMOTE
 		|| self->client->NPC_class == CLASS_SENTRY
 		|| self->client->NPC_class == CLASS_PROBE
 		|| self->client->NPC_class == CLASS_INTERROGATOR
-		|| self->client->NPC_class == CLASS_PROBE
 		|| self->client->NPC_class == CLASS_MARK2 )
 	{
 		//if ( !self->taskManager || !self->taskManager->IsRunning() )
@@ -164,7 +162,7 @@ void NPC_RemoveBody( gentity_t *self )
 	{
 		self->NPC->timeOfDeath = level.time + 1000;
 		// Only do all of this nonsense for Scav boys ( and girls )
-	///	if ( self->client->playerTeam == NPCTEAM_SCAVENGERS || self->client->playerTeam == NPCTEAM_KLINGON 
+	///	if ( self->client->playerTeam == NPCTEAM_SCAVENGERS || self->client->playerTeam == NPCTEAM_KLINGON
 	//		|| self->client->playerTeam == NPCTEAM_HIROGEN || self->client->playerTeam == NPCTEAM_MALON )
 		// should I check NPC_class here instead of TEAM ? - dmv
 		if( self->client->playerTeam == NPCTEAM_ENEMY || self->client->NPC_class == CLASS_PROTOCOL )
@@ -192,7 +190,7 @@ void NPC_RemoveBody( gentity_t *self )
 		//			to remove the bodies... but in other cases it's just weird, like
 		//			when they're right behind you in a closed room and when they've been
 		//			placed as dead NPCs by a designer...
-		//			For now we just assume that a corpse with no enemy was 
+		//			For now we just assume that a corpse with no enemy was
 		//			placed in the map as a corpse
 		if ( self->enemy )
 		{
@@ -300,7 +298,7 @@ int BodyRemovalPadTime( gentity_t *ent )
 		break;
 
 	}
-	
+
 
 	return time;
 }
@@ -343,7 +341,7 @@ static void NPC_RemoveBodyEffect(void)
 
 
 	// team no longer indicates species/race, so in this case we'd use NPC_class, but
-	
+
 	// stub code
 	switch(NPCS.NPC->client->NPC_class)
 	{
@@ -469,7 +467,7 @@ void pitch_roll_for_slope( gentity_t *forwhom, vec3_t pass_slope )
 DeadThink
 ----------------------------------------
 */
-static void DeadThink ( void ) 
+static void DeadThink ( void )
 {
 	trace_t	trace;
 
@@ -526,7 +524,7 @@ static void DeadThink ( void )
 	//NPC_PostDeathThink();
 
 	/*
-	if ( !NPCInfo->timeOfDeath && NPC->client != NULL && NPCInfo != NULL ) 
+	if ( !NPCInfo->timeOfDeath && NPC->client != NULL && NPCInfo != NULL )
 	{
 		//haven't finished death anim yet and were NOT given a specific amount of time to wait before removal
 		int				legsAnim	= NPC->client->ps.legsAnim;
@@ -591,7 +589,7 @@ static void DeadThink ( void )
 		// if client is in a nodrop area, make him/her nodraw
 		int contents = NPCS.NPC->bounceCount = trap->PointContents( NPCS.NPC->r.currentOrigin, -1 );
 
-		if ( ( contents & CONTENTS_NODROP ) ) 
+		if ( ( contents & CONTENTS_NODROP ) )
 		{
 			NPCS.NPC->client->ps.eFlags |= EF_NODRAW;
 		}
@@ -608,7 +606,7 @@ SetNPCGlobals
 local function to set globals used throughout the AI code
 ===============
 */
-void SetNPCGlobals( gentity_t *ent ) 
+void SetNPCGlobals( gentity_t *ent )
 {
 	NPCS.NPC = ent;
 	NPCS.NPCInfo = ent->NPC;
@@ -618,18 +616,18 @@ void SetNPCGlobals( gentity_t *ent )
 
 npcStatic_t _saved_NPCS;
 
-void SaveNPCGlobals(void) 
+void SaveNPCGlobals(void)
 {
 	memcpy( &_saved_NPCS, &NPCS, sizeof( _saved_NPCS ) );
 }
 
-void RestoreNPCGlobals(void) 
+void RestoreNPCGlobals(void)
 {
 	memcpy( &NPCS, &_saved_NPCS, sizeof( _saved_NPCS ) );
 }
 
 //We MUST do this, other funcs were using NPC illegally when "self" wasn't the global NPC
-void ClearNPCGlobals( void ) 
+void ClearNPCGlobals( void )
 {
 	NPCS.NPC = NULL;
 	NPCS.NPCInfo = NULL;
@@ -727,7 +725,7 @@ void NPC_HandleAIFlags (void)
 	{//Print that you need help!
 		//FIXME: shouldn't remove this just yet if cg_draw needs it
 		NPCS.NPCInfo->aiFlags &= ~NPCAI_LOST;
-		
+
 		/*
 		if ( showWaypoints )
 		{
@@ -1062,7 +1060,7 @@ void NPC_BehaviorSet_Seeker( int bState )
 	case BS_HUNT_AND_KILL:
 	case BS_DEFAULT:
 		NPC_BSSeeker_Default();
-		break; 
+		break;
 	default:
 		NPC_BehaviorSet_Default( bState );
 		break;
@@ -1098,7 +1096,7 @@ void NPC_BehaviorSet_Sentry( int bState )
 	case BS_HUNT_AND_KILL:
 	case BS_DEFAULT:
 		NPC_BSSentry_Default();
-		break; 
+		break;
 	default:
 		NPC_BehaviorSet_Default( bState );
 		break;
@@ -1386,7 +1384,7 @@ void NPC_RunBehavior( int team, int bState )
 		return;
 	}
 //	else if ( NPCS.NPC->client->ps.weapon == WP_SABER )		// this is an _extremely_ shitty comparison.. FIXME: make a CLASS_CULTIST? --eez
-	else if ( NPCS.NPC->client->NPC_class == CLASS_JEDI || 
+	else if ( NPCS.NPC->client->NPC_class == CLASS_JEDI ||
 		NPCS.NPC->client->NPC_class == CLASS_REBORN ||
 		NPCS.NPC->client->ps.weapon == WP_SABER )
 	{//jedi
@@ -1431,7 +1429,7 @@ void NPC_RunBehavior( int team, int bState )
 	{
 		switch( team )
 		{
-		
+
 	//	case NPCTEAM_SCAVENGERS:
 	//	case NPCTEAM_IMPERIAL:
 	//	case NPCTEAM_KLINGON:
@@ -1510,7 +1508,7 @@ void NPC_RunBehavior( int team, int bState )
 			NPC_BehaviorSet_Stormtrooper( bState );
 			break;
 
-		case NPCTEAM_NEUTRAL: 
+		case NPCTEAM_NEUTRAL:
 
 			// special cases for enemy droids
 			if ( NPCS.NPC->client->NPC_class == CLASS_PROTOCOL || NPCS.NPC->client->NPC_class == CLASS_UGNAUGHT ||
@@ -1562,7 +1560,7 @@ NPC Behavior state thinking
 
 ===============
 */
-void NPC_ExecuteBState ( gentity_t *self)//, int msec ) 
+void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 {
 	bState_t	bState;
 
@@ -1594,7 +1592,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 
 	//Pick the proper bstate for us and run it
 	NPC_RunBehavior( self->client->playerTeam, bState );
-	
+
 
 //	if(bState != BS_POINT_COMBAT && NPCInfo->combatPoint != -1)
 //	{
@@ -1610,7 +1608,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 //	CheckSelf();
 
 	//Back to normal?  All decisions made?
-	
+
 	//FIXME: don't walk off ledges unless we can get to our goal faster that way, or that's our goal's surface
 	//NPCPredict();
 
@@ -1652,7 +1650,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 			NPCS.client->ps.weaponstate = WEAPON_READY;
 		}
 	}
-	else 
+	else
 	{
 		if(NPCS.client->ps.weaponstate == WEAPON_READY)
 		{
@@ -1690,7 +1688,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 
 	NPC_CheckAttackHold();
 	NPC_ApplyScriptFlags();
-	
+
 	//cliff and wall avoidance
 	NPC_AvoidWallsAndCliffs();
 
@@ -1720,7 +1718,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 
 	NPC_CheckPlayerAim();
 	NPC_CheckAllClear();
-	
+
 	/*if( ucmd.forwardmove || ucmd.rightmove )
 	{
 		int	i, la = -1, ta = -1;
@@ -1736,7 +1734,7 @@ void NPC_ExecuteBState ( gentity_t *self)//, int msec )
 			{
 				ta = i;
 			}
-			
+
 			if(la != -1 && ta != -1)
 			{
 				break;
@@ -1814,7 +1812,7 @@ Main NPC AI - called once per frame
 #if	AI_TIMERS
 extern int AITime;
 #endif//	AI_TIMERS
-void NPC_Think ( gentity_t *self)//, int msec ) 
+void NPC_Think ( gentity_t *self)//, int msec )
 {
 	vec3_t	oldMoveDir;
 	int i = 0;
@@ -1839,7 +1837,7 @@ void NPC_Think ( gentity_t *self)//, int msec )
 
 	// dead NPCs have a special think, don't run scripts (for now)
 	//FIXME: this breaks deathscripts
-	if ( self->health <= 0 ) 
+	if ( self->health <= 0 )
 	{
 		DeadThink();
 		if ( NPCS.NPCInfo->nextBStateThink <= level.time )
@@ -1851,7 +1849,7 @@ void NPC_Think ( gentity_t *self)//, int msec )
 	}
 
 	// see if NPC ai is frozen
-	if ( d_npcfreeze.value || (NPCS.NPC->r.svFlags&SVF_ICARUS_FREEZE) ) 
+	if ( d_npcfreeze.value || (NPCS.NPC->r.svFlags&SVF_ICARUS_FREEZE) )
 	{
 		NPC_UpdateAngles( qtrue, qtrue );
 		ClientThink(self->s.number, &NPCS.ucmd);
@@ -1910,7 +1908,7 @@ void NPC_Think ( gentity_t *self)//, int msec )
 		G_DroidSounds( self );
 	}
 
-	if ( NPCS.NPCInfo->nextBStateThink <= level.time 
+	if ( NPCS.NPCInfo->nextBStateThink <= level.time
 		&& !NPCS.NPC->s.m_iVehicleNum )//NPCs sitting in Vehicles do NOTHING
 	{
 #if	AI_TIMERS
@@ -1969,7 +1967,7 @@ void NPC_Think ( gentity_t *self)//, int msec )
 	VectorCopy(self->r.currentOrigin, self->client->ps.origin);
 }
 
-void NPC_InitAI ( void ) 
+void NPC_InitAI ( void )
 {
 	/*
 	trap->Cvar_Register(&g_saberRealisticCombat, "g_saberRealisticCombat", "0", CVAR_CHEAT);
@@ -1982,7 +1980,7 @@ void NPC_InitAI ( void )
 	trap->Cvar_Register(&d_JediAI, "d_JediAI", "0", CVAR_CHEAT);
 	trap->Cvar_Register(&d_noGroupAI, "d_noGroupAI", "0", CVAR_CHEAT);
 	trap->Cvar_Register(&d_asynchronousGroupAI, "d_asynchronousGroupAI", "0", CVAR_CHEAT);
-	
+
 	//0 = never (BORING)
 	//1 = kyle only
 	//2 = kyle and last enemy jedi
@@ -2029,7 +2027,7 @@ void NPC_InitAnimTable( void )
 }
 */
 
-void NPC_InitGame( void ) 
+void NPC_InitGame( void )
 {
 //	globals.NPCs = (gNPC_t *) trap->TagMalloc(game.maxclients * sizeof(game.bots[0]), TAG_GAME);
 //	trap->Cvar_Register(&debugNPCName, "d_npc", "0", CVAR_CHEAT);
@@ -2054,7 +2052,7 @@ void NPC_SetAnim(gentity_t *ent, int setAnimParts, int anim, int setAnimFlags)
 	if(ent->client)
 	{//Players, NPCs
 		if (setAnimFlags&SETANIM_FLAG_OVERRIDE)
-		{		
+		{
 			if (setAnimParts & SETANIM_TORSO)
 			{
 				if( (setAnimFlags & SETANIM_FLAG_RESTART) || ent->client->ps.torsoAnim != anim )
@@ -2077,7 +2075,7 @@ void NPC_SetAnim(gentity_t *ent, int setAnimParts, int anim, int setAnimFlags)
 	else
 	{//bodies, etc.
 		if (setAnimFlags&SETANIM_FLAG_OVERRIDE)
-		{		
+		{
 			if (setAnimParts & SETANIM_TORSO)
 			{
 				if( (setAnimFlags & SETANIM_FLAG_RESTART) || ent->s.torsoAnim != anim )

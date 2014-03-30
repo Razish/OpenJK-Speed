@@ -5,12 +5,14 @@ if(NOT InOpenJK)
 	message(FATAL_ERROR "Use the top-level cmake script!")
 endif(NOT InOpenJK)
 
+set(JK2SPGameDefines ${JK2SPGameDefines} "JK2_MODE")
+
 set(JK2SPGameIncludeDirectories "${JK2SPDir}/game")
 if(WIN32)
 	set(JK2SPGameLibraries "winmm")
 endif(WIN32)
 
-set(JK2SPGameFiles
+set(JK2SPGameGameFiles
 	"${JK2SPDir}/game/AI_Atst.cpp"
 	"${JK2SPDir}/game/AI_Default.cpp"
 	"${JK2SPDir}/game/AI_Droid.cpp"
@@ -58,7 +60,6 @@ set(JK2SPGameFiles
 	"${JK2SPDir}/game/g_combat.cpp"
 	"${JK2SPDir}/game/g_functions.cpp"
 	"${JK2SPDir}/game/g_fx.cpp"
-	"${JK2SPDir}/game/g_headers.cpp"
 	"${JK2SPDir}/game/g_inventory.cpp"
 	"${JK2SPDir}/game/g_itemLoad.cpp"
 	"${JK2SPDir}/game/g_items.cpp"
@@ -116,7 +117,6 @@ set(JK2SPGameFiles
 	"${JK2SPDir}/game/bstate.h"
 	"${JK2SPDir}/game/channels.h"
 	"${JK2SPDir}/game/characters.h"
-	"${JK2SPDir}/game/common_headers.h"
 	"${JK2SPDir}/game/dmstates.h"
 	"${JK2SPDir}/game/events.h"
 	"${JK2SPDir}/game/fields.h"
@@ -174,8 +174,6 @@ set(JK2SPGameCGameFiles
 	"${JK2SPDir}/cgame/cg_effects.cpp"
 	"${JK2SPDir}/cgame/cg_ents.cpp"
 	"${JK2SPDir}/cgame/cg_event.cpp"
-	"${JK2SPDir}/cgame/cg_headers.cpp"
-	"${JK2SPDir}/cgame/cg_headers.h"
 	"${JK2SPDir}/cgame/cg_info.cpp"
 	"${JK2SPDir}/cgame/cg_lights.cpp"
 	"${JK2SPDir}/cgame/cg_lights.h"
@@ -195,7 +193,6 @@ set(JK2SPGameCGameFiles
 	"${JK2SPDir}/cgame/cg_text.cpp"
 	"${JK2SPDir}/cgame/cg_view.cpp"
 	"${JK2SPDir}/cgame/cg_weapons.cpp"
-	"${JK2SPDir}/cgame/common_headers.h"
 	"${JK2SPDir}/cgame/strip_objectives.h"
 	)
 source_group("cgame" FILES ${JK2SPGameCGameFiles})
@@ -234,6 +231,13 @@ set(JK2SPGameIcarusFiles
 source_group("icarus" FILES ${JK2SPGameIcarusFiles})
 set(JK2SPGameFiles ${JK2SPGameFiles} ${JK2SPGameIcarusFiles})
 
+set(JK2SPGameRuflFiles
+	"${SPDir}/Rufl/hstring.cpp"
+	"${SPDir}/Rufl/hstring.h"
+	)
+source_group("rufl" FILES ${JK2SPGameRuflFiles})
+set(JK2SPGameFiles ${JK2SPGameFiles} ${JK2SPGameRuflFiles})
+
 if(WIN32)
 	set(JK2SPGameWin32Files
 		"${JK2SPDir}/win32/game.rc")
@@ -258,7 +262,7 @@ set_target_properties(${JK2SPGame} PROPERTIES COMPILE_DEFINITIONS_MINSIZEREL "${
 set_target_properties(${JK2SPGame} PROPERTIES COMPILE_DEFINITIONS_RELEASE "${JK2SPGameDefines};${ReleaseDefines}")
 set_target_properties(${JK2SPGame} PROPERTIES COMPILE_DEFINITIONS_DEBUG "${JK2SPGameDefines};${DebugDefines}")
 set_target_properties(${JK2SPGame} PROPERTIES INCLUDE_DIRECTORIES "${JK2SPGameIncludeDirectories}")
-set_target_properties(${JK2SPGame} PROPERTIES PROJECT_LABEL "JK2SP Game Library")
+set_target_properties(${JK2SPGame} PROPERTIES PROJECT_LABEL "JK2 SP Game Library")
 # no libraries used
 if(JK2SPGameLibraries)
 	target_link_libraries(${JK2SPGame} ${JK2SPGameLibraries})

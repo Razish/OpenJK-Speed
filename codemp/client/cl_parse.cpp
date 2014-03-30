@@ -19,7 +19,7 @@ char *svc_strings[256] = {
 	"svc_nop",
 	"svc_gamestate",
 	"svc_configstring",
-	"svc_baseline",	
+	"svc_baseline",
 	"svc_serverCommand",
 	"svc_download",
 	"svc_snapshot",
@@ -32,8 +32,6 @@ void SHOWNET( msg_t *msg, char *s) {
 		Com_Printf ("%3i:%s\n", msg->readcount-1, s);
 	}
 }
-
-//void CL_SP_Print(const word ID, byte *Data); //, char* color)
 
 /*
 =========================================================================
@@ -51,7 +49,7 @@ Parses deltas from the given base and adds the resulting entity
 to the current frame
 ==================
 */
-void CL_DeltaEntity (msg_t *msg, clSnapshot_t *frame, int newnum, entityState_t *old, 
+void CL_DeltaEntity (msg_t *msg, clSnapshot_t *frame, int newnum, entityState_t *old,
 					 qboolean unchanged) {
 	entityState_t	*state;
 
@@ -59,11 +57,11 @@ void CL_DeltaEntity (msg_t *msg, clSnapshot_t *frame, int newnum, entityState_t 
 	// it can be used as the source for a later delta
 	state = &cl.parseEntities[cl.parseEntitiesNum & (MAX_PARSE_ENTITIES-1)];
 
-	if ( unchanged ) 
+	if ( unchanged )
 	{
 		*state = *old;
-	} 
-	else 
+	}
+	else
 	{
 		MSG_ReadDeltaEntity( msg, old, state, newnum );
 	}
@@ -122,7 +120,7 @@ void CL_ParsePacketEntities( msg_t *msg, clSnapshot_t *oldframe, clSnapshot_t *n
 				Com_Printf ("%3i:  unchanged: %i\n", msg->readcount, oldnum);
 			}
 			CL_DeltaEntity( msg, newframe, oldnum, oldstate, qtrue );
-			
+
 			oldindex++;
 
 			if ( oldindex >= oldframe->numEntities ) {
@@ -170,7 +168,7 @@ void CL_ParsePacketEntities( msg_t *msg, clSnapshot_t *oldframe, clSnapshot_t *n
 			Com_Printf ("%3i:  unchanged: %i\n", msg->readcount, oldnum);
 		}
 		CL_DeltaEntity( msg, newframe, oldnum, oldstate, qtrue );
-		
+
 		oldindex++;
 
 		if ( oldindex >= oldframe->numEntities ) {
@@ -232,7 +230,7 @@ void CL_ParseSnapshot( msg_t *msg ) {
 	// If the frame is delta compressed from data that we
 	// no longer have available, we must suck up the rest of
 	// the frame, but not use it, then ask for a non-compressed
-	// message 
+	// message
 	if ( newSnap.deltaNum <= 0 ) {
 		newSnap.valid = qtrue;		// uncompressed frame
 		old = NULL;
@@ -276,7 +274,7 @@ void CL_ParseSnapshot( msg_t *msg ) {
 		MSG_ReadDeltaPlayerstate( msg, NULL, &newSnap.ps );
 		if (newSnap.ps.m_iVehicleNum)
 		{ //this means we must have written our vehicle's ps too
-			MSG_ReadDeltaPlayerstate( msg, NULL, &newSnap.vps, qtrue );			
+			MSG_ReadDeltaPlayerstate( msg, NULL, &newSnap.vps, qtrue );
 		}
 	}
 
@@ -385,9 +383,6 @@ void CL_ParseSetGame( msg_t *msg )
 
 int cl_connectedToPureServer;
 int cl_connectedToCheatServer;
-int cl_connectedGAME;
-int cl_connectedCGAME;
-int cl_connectedUI;
 
 /*
 ==================
@@ -437,8 +432,6 @@ void CL_SystemInfoChanged( void ) {
 	// scan through all the variables in the systeminfo and locally set cvars to match
 	s = systemInfo;
 	while ( s ) {
-		int cvar_flags;
-
 		Info_NextPair( &s, key, value );
 		if ( !key[0] ) {
 			break;
@@ -459,36 +452,13 @@ void CL_SystemInfoChanged( void ) {
 
 			gameSet = qtrue;
 		}
-
-		if((unsigned)(cvar_flags = Cvar_Flags(key)) == CVAR_NONEXISTENT)
-			Cvar_Get(key, value, CVAR_SERVER_CREATED | CVAR_ROM);
-		else
-		{
-			// If this cvar may not be modified by a server discard the value.
-			if(!(cvar_flags & (CVAR_SYSTEMINFO | CVAR_SERVER_CREATED | CVAR_USER_CREATED)))
-			{
-				if (Q_stricmp( key, "g_synchronousClients" ) &&
-					Q_stricmp( key, "pmove_fixed" ) &&
-					Q_stricmp( key, "pmove_msec" ) &&
-					Q_stricmp( key, "pmove_float" ) )
-				{
-					Com_Printf(S_COLOR_YELLOW "WARNING: server is not allowed to set %s=%s\n", key, value);
-					continue;
-				}
-			}
-
-			Cvar_SetSafe(key, value);
-		}
+		Cvar_Server_Set( key, value );
 	}
 	// if game folder should not be set and it is set at the client side
 	if ( !gameSet && *Cvar_VariableString("fs_game") ) {
 		Cvar_Set( "fs_game", "" );
 	}
 	cl_connectedToPureServer = Cvar_VariableValue( "sv_pure" );
-
-	cl_connectedGAME = atoi(Info_ValueForKey( systemInfo, "vm_game" ));
-	cl_connectedCGAME = atoi(Info_ValueForKey( systemInfo, "vm_cgame" ));
-	cl_connectedUI = atoi(Info_ValueForKey( systemInfo, "vm_ui" ));
 }
 
 void CL_ParseAutomapSymbols ( msg_t* msg )
@@ -544,7 +514,7 @@ void CL_ParseRMG ( msg_t* msg )
 	size = (unsigned short)MSG_ReadShort ( msg );
 
 	if ( MSG_ReadBits ( msg, 1 ) )
-	{	
+	{
 		// Read the flatten map
 		memset(&zdata, 0, sizeof(z_stream));
 		inflateInit ( &zdata/*, Z_SYNC_FLUSH*/ );
@@ -563,7 +533,7 @@ void CL_ParseRMG ( msg_t* msg )
 		MSG_ReadData ( msg, (unsigned char*)clc.rmgFlattenMap, size );
 	}
 
-	// Read the seed		
+	// Read the seed
 	clc.rmgSeed = MSG_ReadLong ( msg );
 
 	CL_ParseAutomapSymbols ( msg );
@@ -605,7 +575,7 @@ void CL_ParseGamestate( msg_t *msg ) {
 		if ( cmd == svc_EOF ) {
 			break;
 		}
-		
+
 		if ( cmd == svc_configstring ) {
 			int		len, start;
 
@@ -788,7 +758,7 @@ void CL_ParseDownload ( msg_t *msg ) {
 			clc.download = 0;
 
 			// rename the file
-			FS_SV_Rename ( clc.downloadTempName, clc.downloadName );
+			FS_SV_Rename ( clc.downloadTempName, clc.downloadName, qfalse );
 		}
 
 		// send intentions now
@@ -908,7 +878,7 @@ void CL_ParseServerMessage( msg_t *msg ) {
 
 	// get the reliable sequence acknowledge number
 	clc.reliableAcknowledge = MSG_ReadLong( msg );
-	// 
+	//
 	if ( clc.reliableAcknowledge < clc.reliableSequence - MAX_RELIABLE_COMMANDS ) {
 		clc.reliableAcknowledge = clc.reliableSequence;
 	}
@@ -936,12 +906,12 @@ void CL_ParseServerMessage( msg_t *msg ) {
 				SHOWNET( msg, svc_strings[cmd] );
 			}
 		}
-	
+
 	// other commands
 		switch ( cmd ) {
 		default:
 			Com_Error (ERR_DROP,"CL_ParseServerMessage: Illegible server message\n");
-			break;			
+			break;
 		case svc_nop:
 			break;
 		case svc_serverCommand:

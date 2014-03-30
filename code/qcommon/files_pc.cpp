@@ -20,23 +20,6 @@ This file is part of Jedi Academy.
 #include "qcommon.h"
 #include "files.h"
 
-
-#define	MAX_SEARCH_PATHS	2048
-#define MAX_FILEHASH_SIZE	1024
-
-
-#define	DEMOGAME			"demo"
-
-// every time a new demo pk3 file is built, this checksum must be updated.
-// the easiest way to get it is to just run the game and see what it spits out
-#define	DEMO_PAK_CHECKSUM	4102795916u
-#define	DEMO_PAK_MAXFILES	5174u
-
-
-//static int		fs_numServerPaks;
-//static int		fs_serverPaks[MAX_SEARCH_PATHS];
-
-
 /*
 ================
 return a hash value for the filename
@@ -87,6 +70,28 @@ void	FS_ForceFlush( fileHandle_t f ) {
 
 /*
 ================
+FS_fplength
+================
+*/
+
+long FS_fplength(FILE *h)
+{
+	long		pos;
+	long		end;
+
+	pos = ftell(h);
+	if ( pos == EOF )
+		return EOF;
+
+	fseek(h, 0, SEEK_END);
+	end = ftell(h);
+	fseek(h, pos, SEEK_SET);
+
+	return end;
+}
+
+/*
+================
 FS_filelength
 
 If this is called on a non-unique FILE (from a pak file),
@@ -95,17 +100,14 @@ size of the file.
 ================
 */
 int FS_filelength( fileHandle_t f ) {
-	int		pos;
-	int		end;
-	FILE*	h;
+	FILE	*h;
 
 	h = FS_FileForHandle(f);
-	pos = ftell (h);
-	fseek (h, 0, SEEK_END);
-	end = ftell (h);
-	fseek (h, pos, SEEK_SET);
-
-	return end;
+	
+	if(h == NULL)
+		return EOF;
+	else
+		return FS_fplength(h);
 }
 
 /*
@@ -133,6 +135,15 @@ qboolean FS_CopyFile( char *fromOSPath, char *toOSPath, qboolean qbSilent ) {
 	fseek (f, 0, SEEK_END);
 	len = ftell (f);
 	fseek (f, 0, SEEK_SET);
+
+	if ( len == EOF )
+	{
+		fclose(f);
+		if (qbSilent){
+			return qfalse;
+		}
+		Com_Error( ERR_FATAL, "Bad file length in FS_CopyFile()" );
+	}
 	
 	buf = (unsigned char *) Z_Malloc( len, TAG_FILESYS, qfalse);
 	if (fread( buf, 1, len, f ) != (size_t) len)
@@ -425,6 +436,7 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 						// open the file in the zip
 						unzOpenCurrentFile( fsh[*file].handleFiles.file.z );
 						fsh[*file].zipFilePos = pakFile->pos;
+						fsh[*file].zipFileLen = pakFile->len;
 
 						if ( fs_debug->integer ) {
 							Com_Printf( "FS_FOpenFileRead: %s (found in '%s')\n", 
@@ -532,7 +544,7 @@ int FS_FOpenFileRead( const char *filename, fileHandle_t *file, qboolean uniqueF
 					break;	// and re-read the local copy, not the net version
 				}
 
-				return FS_filelength (*file);
+				return FS_fplength(fsh[*file].handleFiles.file.o);
 			}
 		}
 	}
@@ -657,7 +669,7 @@ int FS_Write( const void *buffer, int len, fileHandle_t h ) {
 	return len;
 }
 
-
+#define PK3_SEEK_BUFFER_SIZE 65536
 /*
 =================
 FS_Seek
@@ -673,19 +685,63 @@ int FS_Seek( fileHandle_t f, long offset, int origin ) {
 	}
 
 	if (fsh[f].zipFile == qtrue) {
-		char	foo[65536];
-		if (offset == 0 && origin == FS_SEEK_SET) {
-			// set the file position in the zip file (also sets the current file info)
-			unzSetOffset(fsh[f].handleFiles.file.z, fsh[f].zipFilePos);
-			return unzOpenCurrentFile(fsh[f].handleFiles.file.z);
-		} else if (offset<65536) {
-			// set the file position in the zip file (also sets the current file info)
-			unzSetOffset(fsh[f].handleFiles.file.z, fsh[f].zipFilePos);
-			unzOpenCurrentFile(fsh[f].handleFiles.file.z);
-			return FS_Read(foo, offset, f);
+		//FIXME: this is really, really crappy
+		//(but better than what was here before)
+		byte	buffer[PK3_SEEK_BUFFER_SIZE];
+		int		remainder;
+		int		currentPosition = FS_FTell( f );
+
+		// change negative offsets into FS_SEEK_SET
+		if ( offset < 0 ) {
+			switch( origin ) {
+				case FS_SEEK_END:
+					remainder = fsh[f].zipFileLen + offset;
+					break;
+
+				case FS_SEEK_CUR:
+					remainder = currentPosition + offset;
+					break;
+
+				case FS_SEEK_SET:
+				default:
+					remainder = 0;
+					break;
+			}
+
+			if ( remainder < 0 ) {
+				remainder = 0;
+			}
+
+			origin = FS_SEEK_SET;
 		} else {
-			Com_Error( ERR_FATAL, "ZIP FILE FSEEK NOT YET IMPLEMENTED for big offsets(%s)\n", fsh[f].name);
-			return -1;
+			if ( origin == FS_SEEK_END ) {
+				remainder = fsh[f].zipFileLen - currentPosition + offset;
+			} else {
+				remainder = offset;
+			}
+		}
+
+		switch( origin ) {
+			case FS_SEEK_SET:
+				if ( remainder == currentPosition ) {
+					return offset;
+				}
+				unzSetOffset(fsh[f].handleFiles.file.z, fsh[f].zipFilePos);
+				unzOpenCurrentFile(fsh[f].handleFiles.file.z);
+				//fallthrough
+
+			case FS_SEEK_END:
+			case FS_SEEK_CUR:
+				while( remainder > PK3_SEEK_BUFFER_SIZE ) {
+					FS_Read( buffer, PK3_SEEK_BUFFER_SIZE, f );
+					remainder -= PK3_SEEK_BUFFER_SIZE;
+				}
+				FS_Read( buffer, remainder, f );
+				return offset;
+
+			default:
+				Com_Error( ERR_FATAL, "Bad origin in FS_Seek" );
+				return -1;
 		}
 	} else {
 		FILE *file;
@@ -709,7 +765,6 @@ int FS_Seek( fileHandle_t f, long offset, int origin ) {
 		return fseek( file, offset, _origin );
 	}
 }
-
 
 /*
 ======================================================================================
@@ -857,8 +912,6 @@ void FS_FreeFile( void *buffer ) {
 	Z_Free( buffer );
 }
 
-
-
 /*
 ==========================================================================
 
@@ -884,7 +937,8 @@ static pack_t *FS_LoadZipFile( char *zipfile )
 	unz_global_info gi;
 	char			filename_inzip[MAX_ZPATH];
 	unz_file_info	file_info;
-	unsigned int	i, len;
+	int				len;
+	size_t			i;
 	long			hash;
 	int				fs_numHeaderLongs;
 	int				*fs_headerLongs;
@@ -900,7 +954,7 @@ static pack_t *FS_LoadZipFile( char *zipfile )
 
 	fs_packFiles += gi.number_entry;
 
-	len = 0;	//find the length of all filenames
+	len = 0;
 	unzGoToFirstFile(uf);
 	for (i = 0; i < gi.number_entry; i++)
 	{
@@ -925,9 +979,11 @@ static pack_t *FS_LoadZipFile( char *zipfile )
 	}
 
 	pack = (pack_t*)Z_Malloc( sizeof( pack_t ) + i * sizeof(fileInPack_t *), TAG_FILESYS, qtrue );
-	memset (pack, 0, sizeof( pack_t ) + i * sizeof(fileInPack_t *));
 	pack->hashSize = i;
 	pack->hashTable = (fileInPack_t **) (((char *) pack) + sizeof( pack_t ));
+	for(int j = 0; j < pack->hashSize; j++) {
+		pack->hashTable[j] = NULL;
+	}
 
 	Q_strncpyz( pack->pakFilename, zipfile, sizeof( pack->pakFilename ) );
 
@@ -957,7 +1013,7 @@ static pack_t *FS_LoadZipFile( char *zipfile )
 		unzGoToNextFile(uf);
 	}
 
-	pack->checksum = Com_BlockChecksum( fs_headerLongs, 4 * fs_numHeaderLongs );
+	pack->checksum = Com_BlockChecksum( fs_headerLongs, sizeof(*fs_headerLongs) * fs_numHeaderLongs );
 	pack->checksum = LittleLong( pack->checksum );
 
 	Z_Free(fs_headerLongs);
@@ -1611,6 +1667,77 @@ void FS_TouchFile_f( void ) {
 	}
 }
 
+/*
+============
+FS_Which_f
+============
+*/
+void FS_Which_f( void ) {
+	searchpath_t	*search;
+	char		*filename;
+
+	filename = Cmd_Argv(1);
+
+	if ( !filename[0] ) {
+		Com_Printf( "Usage: which <file>\n" );
+		return;
+	}
+
+	// qpaths are not supposed to have a leading slash
+	if ( filename[0] == '/' || filename[0] == '\\' ) {
+		filename++;
+	}
+
+	// make absolutely sure that it can't back up the path.
+	// The searchpaths do guarantee that something will always
+	// be prepended, so we don't need to worry about "c:" or "//limbo" 
+	if ( strstr( filename, ".." ) || strstr( filename, "::" ) ) {
+		return;
+	}
+
+	// just wants to see if file is there
+	for ( search=fs_searchpaths; search; search=search->next ) {
+		if ( search->pack ) {
+			long hash = FS_HashFileName( filename, search->pack->hashSize );
+
+			// is the element a pak file?
+			if ( search->pack->hashTable[hash]) {
+				// look through all the pak file elements
+				pack_t* pak = search->pack;
+				fileInPack_t* pakFile = pak->hashTable[hash];
+
+				do {
+					// case and separator insensitive comparisons
+					if ( !FS_FilenameCompare( pakFile->name, filename ) ) {
+						// found it!
+						Com_Printf( "File \"%s\" found in \"%s\"\n", filename, pak->pakFilename );
+						return;
+					}
+
+					pakFile = pakFile->next;
+				} while ( pakFile != NULL );
+			}
+		} else if (search->dir) {
+			directory_t* dir = search->dir;
+
+			char* netpath = FS_BuildOSPath( dir->path, dir->gamedir, filename );
+			FILE* filep = fopen(netpath, "rb");
+
+			if ( filep ) {
+				fclose( filep );
+
+				char buf[MAX_OSPATH];
+				Com_sprintf( buf, sizeof( buf ), "%s%c%s", dir->path, PATH_SEP, dir->gamedir );
+				FS_ReplaceSeparators( buf );
+				Com_Printf( "File \"%s\" found at \"%s\"\n", filename, buf );
+				return;
+			}
+		}
+	}
+
+	Com_Printf( "File not found: \"%s\"\n", filename );
+}
+
 //===========================================================================
 
 
@@ -1638,6 +1765,7 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 	searchpath_t	*sp;
 	int				i;
 	searchpath_t	*search;
+	searchpath_t	*thedir;
 	pack_t			*pak;
 	char			*pakfile;
 	int				numfiles;
@@ -1659,7 +1787,7 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 	//
 	search = (searchpath_t *)Z_Malloc (sizeof(searchpath_t), TAG_FILESYS, qtrue );
 	search->dir = (directory_t*)Z_Malloc( sizeof( *search->dir ), TAG_FILESYS, qtrue );
-	search->pack = 0;
+
 	Q_strncpyz( search->dir->path, path, sizeof( search->dir->path ) );
 	Q_strncpyz( search->dir->gamedir, dir, sizeof( search->dir->gamedir ) );
 	search->next = fs_searchpaths;
@@ -1671,6 +1799,8 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 	// find all pak files in this directory
 	pakfile = FS_BuildOSPath( path, dir, "" );
 	pakfile[ strlen(pakfile) - 1 ] = 0;	// strip the trailing slash
+
+	thedir = search;
 
 	pakfiles = Sys_ListFiles( pakfile, ".pk3", NULL, &numfiles, qfalse );
 
@@ -1691,16 +1821,46 @@ static void FS_AddGameDirectory( const char *path, const char *dir ) {
 			continue;
 		search = (searchpath_t*)Z_Malloc(sizeof(searchpath_t), TAG_FILESYS, qtrue );
 		search->pack = pak;
-		search->dir = 0;
-		search->next = fs_searchpaths;
-		fs_searchpaths = search;		
+
+		if (fs_dirbeforepak && fs_dirbeforepak->integer && thedir)
+		{
+			searchpath_t *oldnext = thedir->next;
+			thedir->next = search;
+
+			while (oldnext)
+			{
+				search->next = oldnext;
+				search = search->next;
+				oldnext = oldnext->next;
+			}
+		}
+		else
+		{
+			search->next = fs_searchpaths;
+			fs_searchpaths = search;
+		}
 	}
 
 	// done
 	Sys_FreeFileList( pakfiles );
 }
 
+/*
+================
+FS_CheckDirTraversal
 
+Check whether the string contains stuff like "../" to prevent directory traversal bugs
+and return qtrue if it does.
+================
+*/
+
+qboolean FS_CheckDirTraversal(const char *checkdir)
+{
+	if(strstr(checkdir, "../") || strstr(checkdir, "..\\"))
+		return qtrue;
+	
+	return qfalse;
+}
 
 /*
 ================
@@ -1723,7 +1883,8 @@ void FS_Startup( const char *gameName ) {
 	}
 	fs_homepath = Cvar_Get ("fs_homepath", homePath, CVAR_INIT );
 	fs_gamedirvar = Cvar_Get ("fs_game", "", CVAR_INIT|CVAR_SYSTEMINFO );
-	//Cvar_Get( "com_demo", "", CVAR_INIT );
+
+	fs_dirbeforepak = Cvar_Get("fs_dirbeforepak", "0", CVAR_INIT);
 
 	// add search path elements in reverse priority order
 	if (fs_cdpath->string[0]) {
@@ -1779,6 +1940,7 @@ void FS_Startup( const char *gameName ) {
 	Cmd_AddCommand ("dir", FS_Dir_f );
 	Cmd_AddCommand ("fdir", FS_NewDir_f );
 	Cmd_AddCommand ("touchFile", FS_TouchFile_f );
+	Cmd_AddCommand ("which", FS_Which_f );
 
 	// print the current search paths
 	FS_Path_f();
@@ -1832,6 +1994,20 @@ void FS_Restart( void ) {
 }
 
 /*
+=================
+FS_ConditionalRestart
+restart if necessary
+=================
+*/
+qboolean FS_ConditionalRestart( void ) {
+	if( fs_gamedirvar->modified ) {
+		FS_Restart( );
+		return qtrue;
+	}
+	return qfalse;
+}
+
+/*
 ========================================================================================
 
 Handle based file calls for virtual machines
@@ -1865,11 +2041,6 @@ int		FS_FOpenFileByMode( const char *qpath, fileHandle_t *f, fsMode_t mode ) {
 	}
 
 	if ( *f ) {
-		if (fsh[*f].zipFile == (int)qtrue) {
-			fsh[*f].baseOffset = unztell(fsh[*f].handleFiles.file.z);
-		} else {
-			fsh[*f].baseOffset = ftell(fsh[*f].handleFiles.file.o);
-		}
 		fsh[*f].fileSize = r;
 	}
 	fsh[*f].handleSync = sync;

@@ -14,7 +14,6 @@ set(MPVanillaRendererFiles
 	"${MPDir}/rd-vanilla/G2_API.cpp"
 	"${MPDir}/rd-vanilla/G2_bolts.cpp"
 	"${MPDir}/rd-vanilla/G2_bones.cpp"
-	"${MPDir}/rd-vanilla/G2_local.h"
 	"${MPDir}/rd-vanilla/G2_misc.cpp"
 	"${MPDir}/rd-vanilla/G2_surfaces.cpp"
 	"${MPDir}/rd-vanilla/tr_arioche.cpp"
@@ -22,6 +21,7 @@ set(MPVanillaRendererFiles
 	"${MPDir}/rd-vanilla/tr_bsp.cpp"
 	"${MPDir}/rd-vanilla/tr_cmds.cpp"
 	"${MPDir}/rd-vanilla/tr_curve.cpp"
+	"${MPDir}/rd-vanilla/tr_decals.cpp"
 	"${MPDir}/rd-vanilla/tr_ghoul2.cpp"
 	"${MPDir}/rd-vanilla/tr_image.cpp"
 	"${MPDir}/rd-vanilla/tr_init.cpp"
@@ -52,6 +52,8 @@ set(MPVanillaRendererFiles
 source_group("renderer" FILES ${MPVanillaRendererFiles})
 
 set(MPVanillaRendererGhoul2Files
+	"${MPDir}/ghoul2/g2_local.h"
+	"${MPDir}/ghoul2/ghoul2_shared.h"
 	"${MPDir}/ghoul2/G2_gore.cpp"
 	"${MPDir}/ghoul2/G2_gore.h")
 source_group("ghoul2" FILES ${MPVanillaRendererGhoul2Files})
@@ -130,6 +132,7 @@ if(NOT WIN32)
 	set(MPVanillaRendererIncludeDirectories ${MPVanillaRendererIncludeDirectories} ${OPENGL_INCLUDE_DIR})
 	set(MPVanillaRendererLibraries ${MPVanillaRendererLibraries} ${OPENGL_LIBRARIES})
 
+	set(SDL2_BUILDING_LIBRARY ON) # don't want main() in Renderer
 	find_package(SDL2 REQUIRED)
 	set(MPVanillaRendererIncludeDirectories ${MPVanillaRendererIncludeDirectories} ${SDL2_INCLUDE_DIR})
 	set(MPVanillaRendererLibraries ${MPVanillaRendererLibraries} ${SDL2_LIBRARY})

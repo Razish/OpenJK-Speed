@@ -265,9 +265,9 @@ void CMod_LoadBrushes( lump_t *l, clipMap_t &cm ) {
 			Com_Error( ERR_DROP, "CMod_LoadBrushes: bad shaderNum: %i", out->shaderNum );
 		}
 		out->contents = cm.shaders[out->shaderNum].contentFlags;
-#ifndef __NO_JK2
+#ifdef JK2_MODE
 		//JK2 HACK: for water that cuts vis but is not solid!!! (used on yavin swamp)
-		if ( com_jk2->integer && cm.shaders[out->shaderNum].surfaceFlags & SURF_SLICK )
+		if ( cm.shaders[out->shaderNum].surfaceFlags & SURF_SLICK )
 		{
 			out->contents &= ~CONTENTS_SOLID;
 		}
@@ -573,27 +573,6 @@ void CM_FreeMap(void) {
 	CM_ClearLevelPatches();
 }
 #endif //BSPC
-
-unsigned CM_LumpChecksum(lump_t *lump) {
-	return LittleLong (Com_BlockChecksum (cmod_base + lump->fileofs, lump->filelen));
-}
-
-unsigned CM_Checksum(dheader_t *header) {
-	unsigned checksums[16];
-	checksums[0] = CM_LumpChecksum(&header->lumps[LUMP_SHADERS]);
-	checksums[1] = CM_LumpChecksum(&header->lumps[LUMP_LEAFS]);
-	checksums[2] = CM_LumpChecksum(&header->lumps[LUMP_LEAFBRUSHES]);
-	checksums[3] = CM_LumpChecksum(&header->lumps[LUMP_LEAFSURFACES]);
-	checksums[4] = CM_LumpChecksum(&header->lumps[LUMP_PLANES]);
-	checksums[5] = CM_LumpChecksum(&header->lumps[LUMP_BRUSHSIDES]);
-	checksums[6] = CM_LumpChecksum(&header->lumps[LUMP_BRUSHES]);
-	checksums[7] = CM_LumpChecksum(&header->lumps[LUMP_MODELS]);
-	checksums[8] = CM_LumpChecksum(&header->lumps[LUMP_NODES]);
-	checksums[9] = CM_LumpChecksum(&header->lumps[LUMP_SURFACES]);
-	checksums[10] = CM_LumpChecksum(&header->lumps[LUMP_DRAWVERTS]);
-
-	return LittleLong(Com_BlockChecksum(checksums, 11 * 4));
-}
 
 /*
 ==================
@@ -995,10 +974,6 @@ clipHandle_t	CM_InlineModel( int index ) {
 		Com_Error( ERR_DROP, "CM_InlineModel: bad number: %d >= %d (may need to re-BSP map?)", index, TotalSubModels );
 	}
 	return index;
-}
-
-int		CM_NumClusters( void ) {
-	return cmg.numClusters;
 }
 
 int		CM_NumInlineModels( void ) {

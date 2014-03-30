@@ -38,10 +38,11 @@ typedef unsigned int glIndex_t;
 extern refimport_t ri;
 
 
-// 14 bits
-// see QSORT_SHADERNUM_SHIFT
-#define	MAX_SHADERS				8192
+// 13 bits
 // can't be increased without changing bit packing for drawsurfs
+// see QSORT_SHADERNUM_SHIFT
+#define SHADERNUM_BITS	13
+#define MAX_SHADERS		(1<<SHADERNUM_BITS)
 
 
 typedef struct dlight_s {
@@ -748,6 +749,8 @@ typedef struct {
 } mgrid_t;
 
 typedef struct {
+	char		name[MAX_QPATH];		// ie: maps/tim_dm2.bsp
+	char		baseName[MAX_QPATH];	// ie: tim_dm2
 
 	int			numShaders;
 	dshader_t	*shaders;
@@ -870,9 +873,14 @@ the bits are allocated as follows:
 0-1   : dlightmap index
 */
 
-#define	QSORT_SHADERNUM_SHIFT	18
-#define	QSORT_ENTITYNUM_SHIFT	7
 #define	QSORT_FOGNUM_SHIFT		2
+#define	QSORT_REFENTITYNUM_SHIFT	7
+#define	QSORT_SHADERNUM_SHIFT	(QSORT_REFENTITYNUM_SHIFT+REFENTITYNUM_BITS)
+// Note: 32nd bit is reserved for RF_ALPHA_FADE voodoo magic
+// see R_AddEntitySurfaces tr.shiftedEntityNum
+#if (QSORT_SHADERNUM_SHIFT+SHADERNUM_BITS) > 31
+	#error "Need to update sorting, too many bits."
+#endif
 
 extern	int			gl_filter_min, gl_filter_max;
 
@@ -967,7 +975,7 @@ typedef struct {
 
 	qboolean				worldMapLoaded;
 	world_t					*world;
-	char					worldDir[MAX_QPATH];		// ie: maps/tim_dm2
+	char					worldDir[MAX_QPATH];		// ie: maps/tim_dm2 (copy of world_t::name sans extension but still includes the path)
 
 	const byte				*externalVisData;	// from RE_SetWorldVisData, shared with CM_Load
 
@@ -1008,7 +1016,7 @@ typedef struct {
 	trRefEntity_t			*currentEntity;
 	trRefEntity_t			worldEntity;		// point currentEntity at this when rendering world
 	int						currentEntityNum;
-	unsigned				shiftedEntityNum;	// currentEntityNum << QSORT_ENTITYNUM_SHIFT (possible with high bit set for RF_ALPHA_FADE)
+	unsigned				shiftedEntityNum;	// currentEntityNum << QSORT_REFENTITYNUM_SHIFT (possible with high bit set for RF_ALPHA_FADE)
 	model_t					*currentModel;
 
 	viewParms_t				viewParms;
@@ -1419,15 +1427,15 @@ typedef struct stageVars
 
 struct shaderCommands_s 
 {
-	glIndex_t	indexes[SHADER_MAX_INDEXES];
-	vec4_t		xyz[SHADER_MAX_VERTEXES];
-	vec4_t		normal[SHADER_MAX_VERTEXES];
-	vec2_t		texCoords[SHADER_MAX_VERTEXES][NUM_TEX_COORDS];
-	color4ub_t	vertexColors[SHADER_MAX_VERTEXES];
-	byte		vertexAlphas[SHADER_MAX_VERTEXES][4];
-	int			vertexDlightBits[SHADER_MAX_VERTEXES];
+	glIndex_t	indexes[SHADER_MAX_INDEXES] QALIGN(16);
+	vec4_t		xyz[SHADER_MAX_VERTEXES] QALIGN(16);
+	vec4_t		normal[SHADER_MAX_VERTEXES] QALIGN(16);
+	vec2_t		texCoords[SHADER_MAX_VERTEXES][NUM_TEX_COORDS] QALIGN(16);
+	color4ub_t	vertexColors[SHADER_MAX_VERTEXES] QALIGN(16);
+	byte		vertexAlphas[SHADER_MAX_VERTEXES][4] QALIGN(16);
+	int			vertexDlightBits[SHADER_MAX_VERTEXES] QALIGN(16);
 
-	stageVars_t	svars;
+	stageVars_t	svars QALIGN(16);
 
 	shader_t	*shader;
 	int			fogNum;
@@ -1598,8 +1606,6 @@ ANIMATED MODELS
 =============================================================
 */
 
-void R_MakeAnimModel( model_t *model );
-void R_AddAnimSurfaces( trRefEntity_t *ent );
 /*
 Ghoul2 Insert Start
 */
@@ -1823,7 +1829,7 @@ typedef enum {
 typedef struct {
 	drawSurf_t	drawSurfs[MAX_DRAWSURFS];
 	dlight_t	dlights[MAX_DLIGHTS];
-	trRefEntity_t	entities[MAX_ENTITIES];
+	trRefEntity_t	entities[MAX_REFENTITIES];
 	srfPoly_t	polys[MAX_POLYS];
 	polyVert_t	polyVerts[MAX_POLYVERTS];
 	renderCommandList_t	commands;

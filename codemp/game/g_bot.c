@@ -9,12 +9,10 @@
 
 #define BOT_SPAWN_QUEUE_DEPTH	16
 
-typedef struct botSpawnQueue_s {
+static struct botSpawnQueue_s {
 	int		clientNum;
 	int		spawnTime;
-} botSpawnQueue_t;
-
-static botSpawnQueue_t	botSpawnQueue[BOT_SPAWN_QUEUE_DEPTH];
+} botSpawnQueue[BOT_SPAWN_QUEUE_DEPTH];
 
 vmCvar_t bot_minplayers;
 
@@ -246,7 +244,7 @@ const char *G_RefreshNextMap(int gametype, qboolean forced)
 		}
 
 		type = Info_ValueForKey(level.arenas.infos[n], "type");
-		
+
 		typeBits = G_GetMapTypeBits(type);
 		if (typeBits & (1 << gametype))
 		{
@@ -283,7 +281,6 @@ G_LoadArenas
 void G_LoadArenas( void ) {
 #if 0
 	int			numdirs;
-	char		filename[128];
 	char		filename[MAX_QPATH];
 	char		dirlist[1024];
 	char*		dirptr;
@@ -297,20 +294,19 @@ void G_LoadArenas( void ) {
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs; i++, dirptr += dirlen+1) {
 		dirlen = strlen(dirptr);
-		strcpy(filename, "scripts/");
 		Q_strncpyz( filename, "scripts/", sizeof( filename ) );
 		strcat(filename, dirptr);
 		G_LoadArenasFromFile(filename);
 	}
 //	trap->Print( "%i arenas parsed\n", level.arenas.num );
-	
+
 	for( n = 0; n < level.arenas.num; n++ ) {
 		Info_SetValueForKey( level.arenas.infos[n], "num", va( "%i", n ) );
 	}
 
 	G_RefreshNextMap(level.gametype, qfalse);
 
-#else // Ensiform's version
+#else
 
 	int			numFiles;
 	char		filelist[MAPSBUFSIZE];
@@ -337,7 +333,7 @@ void G_LoadArenas( void ) {
 		fileptr += len + 1;
 	}
 //	trap->Print( "%i arenas parsed\n", level.arenas.num );
-	
+
 	for( n = 0; n < level.arenas.num; n++ ) {
 		Info_SetValueForKey( level.arenas.infos[n], "num", va( "%i", n ) );
 	}
@@ -411,7 +407,6 @@ void G_AddRandomBot( int team ) {
 			if ( cl->pers.connected != CON_CONNECTED ) {
 				continue;
 			}
-			//JAC: Invalid clientNum was being used
 			if ( !(g_entities[i].r.svFlags & SVF_BOT) ) {
 				continue;
 			}
@@ -444,7 +439,6 @@ void G_AddRandomBot( int team ) {
 			if ( cl->pers.connected != CON_CONNECTED ) {
 				continue;
 			}
-			//JAC: Invalid clientNum was being used
 			if ( !(g_entities[i].r.svFlags & SVF_BOT) ) {
 				continue;
 			}
@@ -494,12 +488,9 @@ int G_RemoveRandomBot( int team ) {
 		if ( cl->pers.connected != CON_CONNECTED ) {
 			continue;
 		}
-		//JAC: Invalid clientNum was being used
 		if ( !(g_entities[i].r.svFlags & SVF_BOT) )
 			continue;
 
-		//JAC: this entity is actually following another entity so the ps data is for a different entity.
-		//		Bots never spectate like this so, skip this player.
 		if ( cl->sess.sessionTeam == TEAM_SPECTATOR && cl->sess.spectatorState == SPECTATOR_FOLLOW )
 			continue;
 
@@ -883,7 +874,6 @@ static void G_AddBot( const char *name, float skill, const char *team, int delay
 	if ( !*s )	s = "none";
 	Info_SetValueForKey( userinfo, key, s );
 
-	//Raz: Added
 	key = "forcepowers";
 	s = Info_ValueForKey( botinfo, key );
 	if ( !*s )	s = DEFAULT_FORCEPOWERS;

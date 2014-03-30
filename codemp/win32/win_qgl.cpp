@@ -3152,8 +3152,8 @@ void QGL_Shutdown( void )
 /*
 ** QGL_Init
 **
-** This is responsible for binding our qgl function pointers to 
-** the appropriate GL stuff.  In Windows this means doing a 
+** This is responsible for binding our qgl function pointers to
+** the appropriate GL stuff.  In Windows this means doing a
 ** LoadLibrary and a bunch of calls to GetProcAddress.  On other
 ** operating systems we need to do the right thing, whatever that
 ** might be.
@@ -3166,7 +3166,7 @@ qboolean QGL_Init( const char *dllname )
 
 //	Com_Printf ("...calling LoadLibrary( '%s.dll' ): ", dllname );
 
-	if ( ( glw_state.hinstOpenGL = LoadLibraryEx( dllname, 0, 0 ) ) == 0 )
+	if ( ( glw_state.hinstOpenGL = LoadLibrary( dllname ) ) == 0 )
 	{
 	    DWORD dw = GetLastError();
 		Com_Printf ("failed %u\n", dw );
@@ -3576,7 +3576,7 @@ void QGL_EnableLogging( qboolean enable )
 			newtime = localtime( &aclock );
 
 			basedir = ri->Cvar_Get( "fs_basepath", "", 0 );
-			Com_sprintf( buffer, sizeof(buffer), "%s/gl.log", basedir->string ); 
+			Com_sprintf( buffer, sizeof(buffer), "%s/gl.log", basedir->string );
 			glw_state.log_fp = fopen( buffer, "wt" );
 
 			fprintf( glw_state.log_fp, "%s\n", asctime( newtime ) );

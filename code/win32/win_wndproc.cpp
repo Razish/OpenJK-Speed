@@ -368,7 +368,7 @@ LONG WINAPI MainWndProc (
 				r.right  = 1;
 				r.bottom = 1;
 
-				style = GetWindowLong( hWnd, GWL_STYLE );
+				style = GetWindowLongPtr( hWnd, GWL_STYLE );
 				AdjustWindowRect( &r, style, FALSE );
 
 				Cvar_SetValue( "vid_xpos", xPos + r.left);
@@ -420,17 +420,20 @@ LONG WINAPI MainWndProc (
 
 	case WM_INPUT:
 		{
+			UINT rawSize;
+			if ( GetRawInputData( (HRAWINPUT) lParam, RID_INPUT, NULL, &rawSize, sizeof(RAWINPUTHEADER) ) == -1 )
+				break;
+
 			RAWINPUT raw;
-			size_t rawSize = sizeof(raw);
+			if ( GetRawInputData( (HRAWINPUT) lParam, RID_INPUT, &raw, &rawSize, sizeof(RAWINPUTHEADER) ) != rawSize )
+				break;
 
-			GetRawInputData( (HRAWINPUT) lParam, RID_INPUT, &raw, &rawSize, sizeof(RAWINPUTHEADER) );
+			if ( ( raw.header.dwType != RIM_TYPEMOUSE ) || ( raw.data.mouse.usFlags != MOUSE_MOVE_RELATIVE ) )
+				break;
 
-			if ( raw.header.dwType == RIM_TYPEMOUSE )
-			{
-				LONG xPosRelative = raw.data.mouse.lLastX;
-				LONG yPosRelative = raw.data.mouse.lLastY;
-				IN_RawMouseEvent( xPosRelative, yPosRelative );
-			}
+			int xPosRelative = raw.data.mouse.lLastX;
+			int yPosRelative = raw.data.mouse.lLastY;
+			IN_RawMouseEvent( xPosRelative, yPosRelative );
 		}
 		break;
 

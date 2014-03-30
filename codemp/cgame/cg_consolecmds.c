@@ -56,7 +56,7 @@ Debugging command to print the current position
 */
 static void CG_Viewpos_f (void) {
 	trap->Print ("%s (%i %i %i) : %i\n", cgs.mapname, (int)cg.refdef.vieworg[0],
-		(int)cg.refdef.vieworg[1], (int)cg.refdef.vieworg[2], 
+		(int)cg.refdef.vieworg[1], (int)cg.refdef.vieworg[2],
 		(int)cg.refdef.viewangles[YAW]);
 }
 
@@ -101,43 +101,19 @@ static void CG_ScoresUp_f( void ) {
 	}
 }
 
-#if 0
-static void CG_spWin_f( void) {
-	trap->Cvar_Set("cg_cameraOrbit", "2");
-	trap->Cvar_Set("cg_cameraOrbitDelay", "35");
-	trap->Cvar_Set("cg_thirdPerson", "1");
-	trap->Cvar_Set("cg_thirdPersonAngle", "0");
-	trap->Cvar_Set("cg_thirdPersonRange", "100");
-	CG_AddBufferedSound(cgs.media.winnerSound);
-	//trap_S_StartLocalSound(cgs.media.winnerSound, CHAN_ANNOUNCER);
-	CG_CenterPrint(CG_GetStringEdString("MP_INGAME", "YOU_WIN"), SCREEN_HEIGHT * .30, 0);
-}
-
-static void CG_spLose_f( void) {
-	trap->Cvar_Set("cg_cameraOrbit", "2");
-	trap->Cvar_Set("cg_cameraOrbitDelay", "35");
-	trap->Cvar_Set("cg_thirdPerson", "1");
-	trap->Cvar_Set("cg_thirdPersonAngle", "0");
-	trap->Cvar_Set("cg_thirdPersonRange", "100");
-	CG_AddBufferedSound(cgs.media.loserSound);
-	//trap_S_StartLocalSound(cgs.media.loserSound, CHAN_ANNOUNCER);
-	CG_CenterPrint(CG_GetStringEdString("MP_INGAME", "YOU_LOSE"), SCREEN_HEIGHT * .30, 0);
-}
-#endif
-
 void CG_ClientList_f( void )
 {
 	clientInfo_t *ci;
 	int i;
 	int count = 0;
 
-	for( i = 0; i < MAX_CLIENTS; i++ ) 
+	for( i = 0; i < MAX_CLIENTS; i++ )
 	{
 		ci = &cgs.clientinfo[ i ];
-		if( !ci->infoValid ) 
+		if( !ci->infoValid )
 			continue;
 
-		switch( ci->team ) 
+		switch( ci->team )
 		{
 		case TEAM_FREE:
 			Com_Printf( "%2d " S_COLOR_YELLOW "F   " S_COLOR_WHITE "%s" S_COLOR_WHITE "%s\n", i, ci->name, (ci->botSkill != -1) ? " (bot)" : "" );
@@ -274,45 +250,47 @@ static void CG_SiegeCompleteCvarUpdate_f(void)
 }
 
 typedef struct consoleCommand_s {
-	char	*cmd;
-	void	(*function)(void);
+	const char	*cmd;
+	void		(*func)(void);
 } consoleCommand_t;
 
+int cmdcmp( const void *a, const void *b ) {
+	return Q_stricmp( (const char *)a, ((consoleCommand_t*)b)->cmd );
+}
+
+/* This array MUST be sorted correctly by alphabetical name field */
 static consoleCommand_t	commands[] = {
-	{ "testgun", CG_TestGun_f },
-	{ "testmodel", CG_TestModel_f },
-	{ "nextframe", CG_TestModelNextFrame_f },
-	{ "prevframe", CG_TestModelPrevFrame_f },
-	{ "nextskin", CG_TestModelNextSkin_f },
-	{ "prevskin", CG_TestModelPrevSkin_f },
-	{ "viewpos", CG_Viewpos_f },
-	{ "+scores", CG_ScoresDown_f },
-	{ "-scores", CG_ScoresUp_f },
-	{ "sizeup", CG_SizeUp_f },
-	{ "sizedown", CG_SizeDown_f },
-	{ "weapnext", CG_NextWeapon_f },
-	{ "weapprev", CG_PrevWeapon_f },
-	{ "weapon", CG_Weapon_f },
-	{ "weaponclean", CG_WeaponClean_f },
-	{ "tell_target", CG_TellTarget_f },
-	{ "tell_attacker", CG_TellAttacker_f },
-	{ "tcmd", CG_TargetCommand_f },
-	//JAC - Disable spWin and spLose as they're just used to troll people.
-	//{ "spWin", CG_spWin_f },
-	//{ "spLose", CG_spLose_f },
-	{ "startOrbit", CG_StartOrbit_f },
-	{ "loaddeferred", CG_LoadDeferredPlayers },
-	{ "invnext", CG_NextInventory_f },
-	{ "invprev", CG_PrevInventory_f },
-	{ "forcenext", CG_NextForcePower_f },
-	{ "forceprev", CG_PrevForcePower_f },
-	{ "briefing", CG_SiegeBriefing_f },
-	{ "siegeCvarUpdate", CG_SiegeCvarUpdate_f },
-	{ "siegeCompleteCvarUpdate", CG_SiegeCompleteCvarUpdate_f },
-	{ "clientlist", CG_ClientList_f },
+	{ "+scores",					CG_ScoresDown_f },
+	{ "-scores",					CG_ScoresUp_f },
+	{ "briefing",					CG_SiegeBriefing_f },
+	{ "clientlist",					CG_ClientList_f },
+	{ "forcenext",					CG_NextForcePower_f },
+	{ "forceprev",					CG_PrevForcePower_f },
+	{ "invnext",					CG_NextInventory_f },
+	{ "invprev",					CG_PrevInventory_f },
+	{ "loaddeferred",				CG_LoadDeferredPlayers },
+	{ "nextframe",					CG_TestModelNextFrame_f },
+	{ "nextskin",					CG_TestModelNextSkin_f },
+	{ "prevframe",					CG_TestModelPrevFrame_f },
+	{ "prevskin",					CG_TestModelPrevSkin_f },
+	{ "siegeCompleteCvarUpdate",	CG_SiegeCompleteCvarUpdate_f },
+	{ "siegeCvarUpdate",			CG_SiegeCvarUpdate_f },
+	{ "sizedown",					CG_SizeDown_f },
+	{ "sizeup",						CG_SizeUp_f },
+	{ "startOrbit",					CG_StartOrbit_f },
+	{ "tcmd",						CG_TargetCommand_f },
+	{ "tell_attacker",				CG_TellAttacker_f },
+	{ "tell_target",				CG_TellTarget_f },
+	{ "testgun",					CG_TestGun_f },
+	{ "testmodel",					CG_TestModel_f },
+	{ "viewpos",					CG_Viewpos_f },
+	{ "weapnext",					CG_NextWeapon_f },
+	{ "weapon",						CG_Weapon_f },
+	{ "weaponclean",				CG_WeaponClean_f },
+	{ "weapprev",					CG_PrevWeapon_f },
 };
 
-static size_t numCommands = ARRAY_LEN( commands );
+static const size_t numCommands = ARRAY_LEN( commands );
 
 /*
 =================
@@ -323,19 +301,15 @@ Cmd_Argc() / Cmd_Argv()
 =================
 */
 qboolean CG_ConsoleCommand( void ) {
-	const char	*cmd;
-	int		i;
+	consoleCommand_t	*command = NULL;
 
-	cmd = CG_Argv(0);
+	command = (consoleCommand_t *)bsearch( CG_Argv( 0 ), commands, numCommands, sizeof( commands[0] ), cmdcmp );
 
-	for ( i = 0 ; i < numCommands ; i++ ) {
-		if ( !Q_stricmp( cmd, commands[i].cmd ) ) {
-			commands[i].function();
-			return qtrue;
-		}
-	}
+	if ( !command )
+		return qfalse;
 
-	return qfalse;
+	command->func();
+	return qtrue;
 }
 
 static const char *gcmds[] = {
@@ -370,7 +344,7 @@ static const char *gcmds[] = {
 	"where",
 	"zoom"
 };
-static size_t numgcmds = ARRAY_LEN( gcmds );
+static const size_t numgcmds = ARRAY_LEN( gcmds );
 
 /*
 =================
@@ -381,7 +355,7 @@ so it can perform tab completion
 =================
 */
 void CG_InitConsoleCommands( void ) {
-	int		i;
+	size_t i;
 
 	for ( i = 0 ; i < numCommands ; i++ )
 		trap->AddCommand( commands[i].cmd );

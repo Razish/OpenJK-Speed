@@ -19,14 +19,13 @@ This file is part of Jedi Knight 2.
 // cg_view.c -- setup all the parameters (position, angle, etc)
 // for a 3D rendering
 
-// this line must stay at top so the whole PCH thing works...
-#include "cg_headers.h"
-
-//#include "cg_local.h"
+#include "cg_local.h"
 #include "cg_media.h"
 #include "FxScheduler.h"
 #include "cg_lights.h"
 #include "../game/wp_saber.h"
+#include "../game/anims.h"
+#include "../game/g_functions.h"
 
 #define MASK_CAMERACLIP (MASK_SOLID)
 #define CAMERA_SIZE	4
@@ -189,7 +188,7 @@ void CG_TestModelAnimate_f(void)
 	char	boneName[100];
 	CGhoul2Info_v	&ghoul2 = *((CGhoul2Info_v *)cg.testModelEntity.ghoul2);
 
-	strcpy(boneName, CG_Argv(1));
+	Q_strncpyz(boneName, CG_Argv(1), sizeof(boneName));
 	gi.G2API_SetBoneAnim(&ghoul2[cg.testModel], boneName, atoi(CG_Argv(2)), atoi(CG_Argv(3)), BONE_ANIM_OVERRIDE_LOOP, atof(CG_Argv(4)), cg.time, -1, -1);
 
 }
@@ -445,6 +444,7 @@ CG_CalcIdealThirdPersonViewLocation
 */
 static void CG_CalcIdealThirdPersonViewLocation(void)
 {
+	gentity_t	*player = &g_entities[0];
 	if ( cg.overrides.active & CG_OVERRIDE_3RD_PERSON_RNG )
 	{
 		VectorMA(cameraIdealTarget, -(cg.overrides.thirdPersonRange), camerafwd, cameraIdealLoc);
@@ -1246,6 +1246,16 @@ qboolean CG_CalcFOVFromX( float fov_x )
 	float	fov_y;
 	qboolean	inwater;
 
+	if ( cg_fovAspectAdjust.integer ) {
+		// Based on LordHavoc's code for Darkplaces
+		// http://www.quakeworld.nu/forum/topic/53/what-does-your-qw-look-like/page/30
+		const float baseAspect = 0.75f; // 3/4
+		const float aspect = (float)cgs.glconfig.vidWidth/(float)cgs.glconfig.vidHeight;
+		const float desiredFov = fov_x;
+
+		fov_x = atan( tan( desiredFov*M_PI / 360.0f ) * baseAspect*aspect )*360.0f / M_PI;
+	}
+
 	x = cg.refdef.width / tan( fov_x / 360 * M_PI );
 	fov_y = atan2( cg.refdef.height, x );
 	fov_y = fov_y * 360 / M_PI;
@@ -1294,6 +1304,7 @@ qboolean CG_CalcFOVFromX( float fov_x )
 
 float CG_ForceSpeedFOV( void )
 {
+	gentity_t	*player = &g_entities[0];
 	float fov;
 	float timeLeft = player->client->ps.forcePowerDuration[FP_SPEED] - cg.time;
 	float length = FORCE_SPEED_DURATION*forceSpeedValue[player->client->ps.forcePowerLevel[FP_SPEED]];
@@ -1323,6 +1334,7 @@ Fixed fov at intermissions, otherwise account for fov variable and zooms.
 static qboolean	CG_CalcFov( void ) {
 	float	fov_x;
 	float	f;
+		gentity_t	*player = &g_entities[0];
 
 	if ( cg.predicted_player_state.pm_type == PM_INTERMISSION ) {
 		// if in intermission, use a fixed value
@@ -1432,9 +1444,7 @@ static qboolean	CG_CalcFov( void ) {
 			fov_x = cg_zoomFov;
 		} else {
 			f = ( cg.time - cg.zoomTime ) / ZOOM_OUT_TIME;
-			if ( f > 1.0 ) {
-				fov_x = fov_x;
-			} else {
+			if ( f <= 1.0 ) {
 				fov_x = cg_zoomFov + f * ( fov_x - cg_zoomFov );
 			}
 		}

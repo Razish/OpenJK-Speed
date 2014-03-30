@@ -24,7 +24,7 @@ public:
 		assert(strlen(o.mStorage.data)<MaxSize);
 		strcpy(mStorage.data,o.mStorage.data);
 	}
-*/	
+*/
 	sstring(const sstring<MaxSize> &o)
 	{
 		//strcpy(mStorage.data,o.mStorage.data);
@@ -48,7 +48,7 @@ public:
 		strcpy(mStorage.data,o.mStorage.data);
 		return *this;
 	}
-*/	
+*/
 	sstring<MaxSize> & operator=(const sstring<MaxSize> &o)
 	{
 		//strcpy(mStorage.data,o.mStorage.data);
@@ -65,11 +65,11 @@ public:
 	char *c_str()
 	{
 		return mStorage.data;
-	}	
+	}
 	const char *c_str() const
 	{
 		return mStorage.data;
-	}	
+	}
 	int capacity() const
 	{
 		return MaxSize;
@@ -80,7 +80,7 @@ public:
 	}
 	bool empty() const
 	{
-		return mStorage.data[0] == '\0'; //Raz: might want to check MaxSize instead?
+		return mStorage.data[0] == '\0'; //FIXME: might want to check MaxSize instead?
 	}
 	bool operator==(const sstring<MaxSize> &o) const
 	{

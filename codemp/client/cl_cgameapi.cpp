@@ -12,7 +12,7 @@
 #include "FXExport.h"
 #include "FxUtil.h"
 
-extern CMiniHeap *G2VertSpaceClient;
+extern IHeapAllocator *G2VertSpaceClient;
 extern botlib_export_t *botlib_export;
 
 // cgame interface
@@ -27,9 +27,12 @@ void CGVM_Init( int serverMessageNum, int serverCommandSequence, int clientNum )
 		VM_Call( cgvm, CG_INIT, serverMessageNum, serverCommandSequence, clientNum );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->Init( serverMessageNum, serverCommandSequence, clientNum );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_Shutdown( void ) {
@@ -37,18 +40,25 @@ void CGVM_Shutdown( void ) {
 		VM_Call( cgvm, CG_SHUTDOWN );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->Shutdown();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 qboolean CGVM_ConsoleCommand( void ) {
 	if ( cgvm->isLegacy ) {
 		return (qboolean)VM_Call( cgvm, CG_CONSOLE_COMMAND );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->ConsoleCommand();
+	qboolean r = cge->ConsoleCommand();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void CGVM_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demoPlayback ) {
@@ -56,27 +66,38 @@ void CGVM_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean de
 		VM_Call( cgvm, CG_DRAW_ACTIVE_FRAME, serverTime, stereoView, demoPlayback );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->DrawActiveFrame( serverTime, stereoView, demoPlayback );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 int CGVM_CrosshairPlayer( void ) {
 	if ( cgvm->isLegacy ) {
 		return VM_Call( cgvm, CG_CROSSHAIR_PLAYER );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->CrosshairPlayer();
+	int r = cge->CrosshairPlayer();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 int CGVM_LastAttacker( void ) {
 	if ( cgvm->isLegacy ) {
 		return VM_Call( cgvm, CG_LAST_ATTACKER );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->LastAttacker();
+	int r = cge->LastAttacker();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void CGVM_KeyEvent( int key, qboolean down ) {
@@ -84,9 +105,12 @@ void CGVM_KeyEvent( int key, qboolean down ) {
 		VM_Call( cgvm, CG_KEY_EVENT, key, down );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->KeyEvent( key, down );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_MouseEvent( int x, int y ) {
@@ -94,9 +118,12 @@ void CGVM_MouseEvent( int x, int y ) {
 		VM_Call( cgvm, CG_MOUSE_EVENT, x, y );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->MouseEvent( x, y );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_EventHandling( int type ) {
@@ -104,18 +131,25 @@ void CGVM_EventHandling( int type ) {
 		VM_Call( cgvm, CG_EVENT_HANDLING, type );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->EventHandling( type );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 int CGVM_PointContents( void ) {
 	if ( cgvm->isLegacy ) {
 		return VM_Call( cgvm, CG_POINT_CONTENTS );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->PointContents();
+	int r = cge->PointContents();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void CGVM_GetLerpOrigin( void ) {
@@ -123,9 +157,12 @@ void CGVM_GetLerpOrigin( void ) {
 		VM_Call( cgvm, CG_GET_LERP_ORIGIN );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->GetLerpOrigin();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_GetLerpData( void ) {
@@ -133,9 +170,12 @@ void CGVM_GetLerpData( void ) {
 		VM_Call( cgvm, CG_GET_LERP_DATA );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->GetLerpData();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_Trace( void ) {
@@ -143,9 +183,12 @@ void CGVM_Trace( void ) {
 		VM_Call( cgvm, CG_TRACE );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->Trace();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_G2Trace( void ) {
@@ -153,9 +196,12 @@ void CGVM_G2Trace( void ) {
 		VM_Call( cgvm, CG_G2TRACE );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->G2Trace();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_G2Mark( void ) {
@@ -163,36 +209,51 @@ void CGVM_G2Mark( void ) {
 		VM_Call( cgvm, CG_G2MARK );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->G2Mark();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 int CGVM_RagCallback( int callType ) {
 	if ( cgvm->isLegacy ) {
 		return VM_Call( cgvm, CG_RAG_CALLBACK, callType );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->RagCallback( callType );
+	int r = cge->RagCallback( callType );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 qboolean CGVM_IncomingConsoleCommand( void ) {
 	if ( cgvm->isLegacy ) {
 		return (qboolean)VM_Call( cgvm, CG_INCOMING_CONSOLE_COMMAND );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->IncomingConsoleCommand();
+	qboolean r = cge->IncomingConsoleCommand();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 qboolean CGVM_NoUseableForce( void ) {
 	if ( cgvm->isLegacy ) {
 		return (qboolean)VM_Call( cgvm, CG_GET_USEABLE_FORCE );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->NoUseableForce();
+	qboolean r = cge->NoUseableForce();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void CGVM_GetOrigin( int entID, vec3_t out ) {
@@ -200,9 +261,12 @@ void CGVM_GetOrigin( int entID, vec3_t out ) {
 		VM_Call( cgvm, CG_GET_ORIGIN, entID, out );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->GetOrigin( entID, out );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_GetAngles( int entID, vec3_t out ) {
@@ -210,27 +274,38 @@ void CGVM_GetAngles( int entID, vec3_t out ) {
 		VM_Call( cgvm, CG_GET_ANGLES, entID, out );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->GetAngles( entID, out );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 trajectory_t *CGVM_GetOriginTrajectory( int entID ) {
 	if ( cgvm->isLegacy ) {
 		return (trajectory_t *)VM_Call( cgvm, CG_GET_ORIGIN_TRAJECTORY, entID );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->GetOriginTrajectory( entID );
+	trajectory_t *r = cge->GetOriginTrajectory( entID );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 trajectory_t *CGVM_GetAngleTrajectory( int entID ) {
 	if ( cgvm->isLegacy ) {
 		return (trajectory_t *)VM_Call( cgvm, CG_GET_ANGLE_TRAJECTORY, entID );
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
-	return cge->GetAngleTrajectory( entID );
+	trajectory_t *r = cge->GetAngleTrajectory( entID );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
+	return r;
 }
 
 void CGVM_ROFF_NotetrackCallback( int entID, const char *notetrack ) {
@@ -238,9 +313,12 @@ void CGVM_ROFF_NotetrackCallback( int entID, const char *notetrack ) {
 		VM_Call( cgvm, CG_ROFF_NOTETRACK_CALLBACK, entID, notetrack );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->ROFF_NotetrackCallback( entID, notetrack );
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_MapChange( void ) {
@@ -248,9 +326,12 @@ void CGVM_MapChange( void ) {
 		VM_Call( cgvm, CG_MAP_CHANGE );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->MapChange();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_AutomapInput( void ) {
@@ -258,9 +339,12 @@ void CGVM_AutomapInput( void ) {
 		VM_Call( cgvm, CG_AUTOMAP_INPUT );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->AutomapInput();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_MiscEnt( void ) {
@@ -268,9 +352,12 @@ void CGVM_MiscEnt( void ) {
 		VM_Call( cgvm, CG_MISC_ENT );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->MiscEnt();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 void CGVM_CameraShake( void ) {
@@ -278,9 +365,12 @@ void CGVM_CameraShake( void ) {
 		VM_Call( cgvm, CG_FX_CAMERASHAKE );
 		return;
 	}
+	vm_t *oldVM = currentVM;
 	currentVM = cgvm;
 
 	cge->CameraShake();
+	if ( oldVM != NULL )
+		currentVM = oldVM;
 }
 
 
@@ -290,7 +380,7 @@ void CGVM_CameraShake( void ) {
 //
 
 static int FloatAsInt( float f ) {
-	floatint_t fi;
+	byteAlias_t fi;
 	fi.f = f;
 	return fi.i;
 }
@@ -444,9 +534,9 @@ static void CL_RMG_Init( int terrainID, const char *terrainInfo ) {
 static qboolean CGFX_PlayBoltedEffectID( int id, vec3_t org, void *ghoul2, const int boltNum, const int entNum, const int modelNum, int iLooptime, qboolean isRelative ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
 	int boltInfo=0;
-	if ( re->G2API_AttachEnt( &boltInfo, &g2[modelNum], boltNum, entNum, modelNum ) )
+	if ( re->G2API_AttachEnt( &boltInfo, g2, modelNum, boltNum, entNum, modelNum ) )
 	{
-		FX_PlayBoltedEffectID(id, org, boltInfo, g2.mItem, iLooptime, isRelative );
+		FX_PlayBoltedEffectID(id, org, boltInfo, &g2, iLooptime, isRelative );
 		return qtrue;
 	}
 	return qfalse;
@@ -507,7 +597,7 @@ static int CL_G2API_InitGhoul2Model( void **ghoul2Ptr, const char *fileName, int
 
 static qboolean CL_G2API_SetSkin( void *ghoul2, int modelIndex, qhandle_t customSkin, qhandle_t renderSkin ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_SetSkin( &g2[modelIndex], customSkin, renderSkin );
+	return re->G2API_SetSkin( g2, modelIndex, customSkin, renderSkin );
 }
 
 static void CL_G2API_CollisionDetect( CollisionRecord_t *collRecMap, void* ghoul2, const vec3_t angles, const vec3_t position, int frameNumber, int entNum, vec3_t rayStart, vec3_t rayEnd, vec3_t scale, int traceFlags, int useLod, float fRadius ) {
@@ -535,7 +625,7 @@ static qboolean CL_G2API_SetBoneAnim( void *ghoul2, const int modelIndex, const 
 
 static qboolean CL_G2API_GetBoneAnim( void *ghoul2, const char *boneName, const int currentTime, float *currentFrame, int *startFrame, int *endFrame, int *flags, float *animSpeed, int *modelList, const int modelIndex ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_GetBoneAnim( &g2[modelIndex], boneName, currentTime, currentFrame, startFrame, endFrame, flags, animSpeed, modelList );
+	return re->G2API_GetBoneAnim( g2, modelIndex, boneName, currentTime, currentFrame, startFrame, endFrame, flags, animSpeed, modelList );
 }
 
 static qboolean CL_G2API_GetBoneFrame( void *ghoul2, const char *boneName, const int currentTime, float *currentFrame, int *modelList, const int modelIndex ) {
@@ -543,7 +633,7 @@ static qboolean CL_G2API_GetBoneFrame( void *ghoul2, const char *boneName, const
 	int iDontCare1 = 0, iDontCare2 = 0, iDontCare3 = 0;
 	float fDontCare1 = 0;
 
-	return re->G2API_GetBoneAnim(&g2[modelIndex], boneName, currentTime, currentFrame, &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, modelList);
+	return re->G2API_GetBoneAnim(g2, modelIndex, boneName, currentTime, currentFrame, &iDontCare1, &iDontCare2, &iDontCare3, &fDontCare1, modelList);
 }
 
 static void CL_G2API_GetGLAName( void *ghoul2, int modelIndex, char *fillBuf ) {
@@ -582,13 +672,13 @@ static qboolean CL_G2API_RemoveGhoul2Model( void *ghlInfo, int modelIndex ) {
 
 static qboolean CL_G2API_SkinlessModel( void *ghlInfo, int modelIndex ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghlInfo);
-	return re->G2API_SkinlessModel( &g2[modelIndex] );
+	return re->G2API_SkinlessModel( g2, modelIndex );
 }
 
 static int CL_G2API_GetNumGoreMarks( void *ghlInfo, int modelIndex ) {
 #ifdef _G2_GORE
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghlInfo);
-	return re->G2API_GetNumGoreMarks( &g2[modelIndex] );
+	return re->G2API_GetNumGoreMarks( g2, modelIndex );
 #else
 	return 0;
 #endif
@@ -616,7 +706,7 @@ static int CL_G2API_AddBolt( void *ghoul2, int modelIndex, const char *boneName 
 
 static qboolean CL_G2API_AttachEnt( int *boltInfo, void *ghlInfoTo, int toBoltIndex, int entNum, int toModelNum ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghlInfoTo);
-	return re->G2API_AttachEnt( boltInfo, &g2[0], toBoltIndex, entNum, toModelNum );
+	return re->G2API_AttachEnt( boltInfo, g2, 0, toBoltIndex, entNum, toModelNum );
 }
 
 static void CL_G2API_SetBoltInfo( void *ghoul2, int modelIndex, int boltInfo ) {
@@ -637,12 +727,12 @@ static qboolean CL_G2API_SetNewOrigin( void *ghoul2, const int boltIndex ) {
 
 static qboolean CL_G2API_DoesBoneExist( void *ghoul2, int modelIndex, const char *boneName ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_DoesBoneExist( &g2[modelIndex], boneName );
+	return re->G2API_DoesBoneExist( g2, modelIndex, boneName );
 }
 
 static int CL_G2API_GetSurfaceRenderStatus( void *ghoul2, const int modelIndex, const char *surfaceName ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_GetSurfaceRenderStatus( &g2[modelIndex], surfaceName );
+	return re->G2API_GetSurfaceRenderStatus( g2, modelIndex, surfaceName );
 }
 
 static int CL_G2API_GetTime( void ) {
@@ -739,7 +829,7 @@ static qboolean CL_G2API_IKMove( void *ghoul2, int time, sharedIKMoveParams_t *p
 
 static qboolean CL_G2API_RemoveBone( void *ghoul2, const char *boneName, int modelIndex ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	return re->G2API_RemoveBone( &g2[modelIndex], boneName );
+	return re->G2API_RemoveBone( g2, modelIndex, boneName );
 }
 
 static void CL_G2API_AttachInstanceToEntNum( void *ghoul2, int entityNum, qboolean server ) {
@@ -756,18 +846,26 @@ static void CL_G2API_CleanEntAttachments( void ) {
 
 static qboolean CL_G2API_OverrideServer( void *serverInstance ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)serverInstance);
-	return re->G2API_OverrideServerWithClientData( &g2[0] );
+	return re->G2API_OverrideServerWithClientData( g2, 0 );
 }
 
 static void CL_G2API_GetSurfaceName( void *ghoul2, int surfNumber, int modelIndex, char *fillBuf ) {
 	CGhoul2Info_v &g2 = *((CGhoul2Info_v *)ghoul2);
-	char *tmp = re->G2API_GetSurfaceName( &g2[modelIndex], surfNumber );
+	char *tmp = re->G2API_GetSurfaceName( g2, modelIndex, surfNumber );
 	strcpy( fillBuf, tmp );
 }
 
 static void CL_Key_SetCatcher( int catcher ) {
 	// Don't allow the cgame module to close the console
 	Key_SetCatcher( catcher | ( Key_GetCatcher( ) & KEYCATCH_CONSOLE ) );
+}
+
+static void CGVM_Cvar_Set( const char *var_name, const char *value ) {
+	Cvar_VM_Set( var_name, value, VM_CGAME );
+}
+
+static void CGVM_Cmd_RemoveCommand( const char *cmd_name ) {
+	Cmd_VM_RemoveCommand( cmd_name, VM_CGAME );
 }
 
 // legacy syscall
@@ -852,7 +950,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return CL_PrecisionTimerEnd( (void *)args[1] );
 
 	case CG_CVAR_REGISTER:
-		Cvar_Register( (vmCvar_t *)VMA(1), (const char *)VMA(2), (const char *)VMA(3), args[4] ); 
+		Cvar_Register( (vmCvar_t *)VMA(1), (const char *)VMA(2), (const char *)VMA(3), args[4] );
 		return 0;
 
 	case CG_CVAR_UPDATE:
@@ -860,7 +958,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return 0;
 
 	case CG_CVAR_SET:
-		Cvar_Set( (const char *)VMA(1), (const char *)VMA(2) );
+		Cvar_VM_Set( (const char *)VMA(1), (const char *)VMA(2), VM_CGAME );
 		return 0;
 
 	case CG_CVAR_VARIABLESTRINGBUFFER:
@@ -885,7 +983,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return FS_FOpenFileByMode( (const char *)VMA(1), (int *)VMA(2), (fsMode_t)args[3] );
 
 	case CG_FS_READ:
-		FS_Read2( VMA(1), args[2], args[3] );
+		FS_Read( VMA(1), args[2], args[3] );
 		return 0;
 
 	case CG_FS_WRITE:
@@ -908,7 +1006,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 		return 0;
 
 	case CG_REMOVECOMMAND:
-		Cmd_RemoveCommand( (const char *)VMA(1) );
+		Cmd_VM_RemoveCommand( (const char *)VMA(1), VM_CGAME );
 		return 0;
 
 	case CG_SENDCLIENTCOMMAND:
@@ -1035,7 +1133,7 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 
 	case CG_R_LOADWORLDMAP:
 		re->LoadWorld( (const char *)VMA(1) );
-		return 0; 
+		return 0;
 
 	case CG_R_REGISTERMODEL:
 		return re->RegisterModel( (const char *)VMA(1) );
@@ -1298,9 +1396,9 @@ intptr_t CL_CgameSystemCalls( intptr_t *args ) {
 
 #ifndef DEBUG_DISABLEFXCALLS
 	case CG_FX_ADDLINE:
-		CGFX_AddLine( (float *)VMA(1), (float *)VMA(2), VMF(3), VMF(4), VMF(5), 
-			VMF(6), VMF(7), VMF(8), 
-			(float *)VMA(9), (float *)VMA(10), VMF(11), 
+		CGFX_AddLine( (float *)VMA(1), (float *)VMA(2), VMF(3), VMF(4), VMF(5),
+			VMF(6), VMF(7), VMF(8),
+			(float *)VMA(9), (float *)VMA(10), VMF(11),
 			args[12], args[13], args[14]);
 		return 0;
 	case CG_FX_REGISTER_EFFECT:
@@ -1657,20 +1755,20 @@ void CL_BindCGame( void ) {
 		cgi.PrecisionTimerStart					= CL_PrecisionTimerStart;
 		cgi.PrecisionTimerEnd					= CL_PrecisionTimerEnd;
 		cgi.Cvar_Register						= Cvar_Register;
-		cgi.Cvar_Set							= Cvar_Set;
+		cgi.Cvar_Set							= CGVM_Cvar_Set;
 		cgi.Cvar_Update							= Cvar_Update;
 		cgi.Cvar_VariableStringBuffer			= Cvar_VariableStringBuffer;
 		cgi.AddCommand							= CL_AddCgameCommand;
 		cgi.Cmd_Argc							= Cmd_Argc;
 		cgi.Cmd_Args							= Cmd_ArgsBuffer;
 		cgi.Cmd_Argv							= Cmd_ArgvBuffer;
-		cgi.RemoveCommand						= Cmd_RemoveCommand;
+		cgi.RemoveCommand						= CGVM_Cmd_RemoveCommand;
 		cgi.SendClientCommand					= CL_AddReliableCommand2;
 		cgi.SendConsoleCommand					= Cbuf_AddText;
 		cgi.FS_Close							= FS_FCloseFile;
 		cgi.FS_GetFileList						= FS_GetFileList;
 		cgi.FS_Open								= FS_FOpenFileByMode;
-		cgi.FS_Read								= FS_Read2;
+		cgi.FS_Read								= FS_Read;
 		cgi.FS_Write							= FS_Write;
 		cgi.UpdateScreen						= SCR_UpdateScreen;
 		cgi.CM_InlineModel						= CM_InlineModel;

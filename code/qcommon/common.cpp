@@ -55,11 +55,6 @@ cvar_t	*com_skippingcin;
 cvar_t	*com_speedslog;		// 1 = buffer log, 2 = flush after each print
 cvar_t  *com_homepath;
 
-#ifndef __NO_JK2
-// Support for JK2 binaries --eez
-cvar_t	*com_jk2;			// searches for jk2gamex86.dll instead of jagamex86.dll
-#endif
-
 #ifdef G2_PERFORMANCE_ANALYSIS
 cvar_t	*com_G2Report;
 #endif
@@ -146,8 +141,12 @@ void QDECL Com_Printf( const char *fmt, ... ) {
 
 	CL_ConsolePrint( msg );
 
+	// Strip out color codes because these aren't needed in the log/viewlog or in the output window --eez
+	Q_StripColor( msg );
+
 	// echo to dedicated console and early console
 	Sys_Print( msg );
+
 
 #ifdef OUTPUT_TO_BUILD_WINDOW
 	OutputDebugString(msg);
@@ -281,8 +280,8 @@ void QDECL Com_Error( int code, const char *fmt, ... ) {
 	if ( code == ERR_DISCONNECT || code == ERR_DROP ) {
 		throw code;
 	} else {
-		CL_Shutdown ();
 		SV_Shutdown (va("Server fatal crashed: %s\n", com_errorMessage));
+		CL_Shutdown ();
 	}
 
 	Com_Shutdown ();
@@ -1073,11 +1072,6 @@ void Com_Init( char *commandLine ) {
 		// override anything from the config files with command line args
 		Com_StartupVariable( NULL );
 
-#ifndef __NO_JK2
-		Com_StartupVariable( "com_jk2" );
-		com_jk2 = Cvar_Get( "com_jk2", "0", CVAR_INIT );
-#endif
-
 		// done early so bind command exists
 		CL_InitKeyCommands();
 
@@ -1139,18 +1133,13 @@ void Com_Init( char *commandLine ) {
 		s = va("%s %s %s", Q3_VERSION, PLATFORM_STRING, __DATE__ );
 		com_version = Cvar_Get ("version", s, CVAR_ROM | CVAR_SERVERINFO );
 
-#ifndef __NO_JK2
-		if(com_jk2 && com_jk2->integer)
-		{
-			JK2SP_Init();
-			Com_Printf("Running Jedi Outcast Mode\n");
-		}
-		else
+#ifdef JK2_MODE
+		JK2SP_Init();
+		Com_Printf("Running Jedi Outcast Mode\n");
+#else
+		SE_Init();	// Initialize StringEd
+		Com_Printf("Running Jedi Academy Mode\n");
 #endif
-		{
-			SE_Init();	// Initialize StringEd
-			Com_Printf("Running Jedi Academy Mode\n");
-		}
 	
 		Sys_Init();	// this also detects CPU type, so I can now do this CPU check below...
 
@@ -1559,14 +1548,11 @@ void Com_Shutdown (void) {
 		com_journalFile = 0;
 	}
 
-#ifndef __NO_JK2
-	if(com_jk2 && com_jk2->integer)
-	{
-		JK2SP_Shutdown();
-	}
-	else
-#endif
+#ifdef JK2_MODE
+	JK2SP_Shutdown();
+#else
 	SE_ShutDown();//close the string packages
+#endif
 
 	extern void Netchan_Shutdown();
 	Netchan_Shutdown();
