@@ -645,6 +645,8 @@ extern	vmCvar_t		cg_smoothPlayerPos;
 extern	vmCvar_t		cg_smoothPlayerPlat;
 extern	vmCvar_t		cg_smoothPlayerPlatAccel;
 
+extern	vmCvar_t		speedrun_vehicleSensitivityScale;
+
 extern	vmCvar_t		cg_smoothCamera;
 extern	vmCvar_t		cg_drawSpeedometer;
 extern	vmCvar_t		cg_drawAccelerometer;
