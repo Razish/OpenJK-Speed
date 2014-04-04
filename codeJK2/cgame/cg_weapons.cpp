@@ -885,7 +885,6 @@ Add the weapon, and flash for the player's view
 ==============
 */
 extern int PM_TorsoAnimForFrame( gentity_t *ent, int torsoFrame );
-extern float CG_ForceSpeedFOV( void );
 
 void CG_AddViewWeapon( playerState_t *ps ) 
 {
@@ -976,7 +975,7 @@ void CG_AddViewWeapon( playerState_t *ps )
 		gentity_t	*player = &g_entities[0];
 	if ( (cg.snap->ps.forcePowersActive&(1<<FP_SPEED)) && player->client->ps.forcePowerDuration[FP_SPEED] )//cg.renderingThirdPerson && 
 	{
-		actualFOV = CG_ForceSpeedFOV();
+		actualFOV = cg_fov.value;
 		actualFOV = (cg_fovViewmodel.integer) ? actualFOV + (cg_fovViewmodel.integer - cg_fov.integer) : actualFOV;
 	}
 	else

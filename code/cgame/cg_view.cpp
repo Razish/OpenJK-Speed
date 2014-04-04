@@ -1314,26 +1314,6 @@ qboolean CG_CalcFOVFromX( float fov_x )
 	return (inwater);
 }
 
-float CG_ForceSpeedFOV( void )
-{
-	float fov;
-	float timeLeft = player->client->ps.forcePowerDuration[FP_SPEED] - cg.time;
-	float length = FORCE_SPEED_DURATION*forceSpeedValue[player->client->ps.forcePowerLevel[FP_SPEED]];
-	float amt = forceSpeedFOVMod[player->client->ps.forcePowerLevel[FP_SPEED]];
-	if ( timeLeft < 500 )
-	{//start going back
-		fov = cg_fov.value + (timeLeft)/500*amt;
-	}
-	else if ( length - timeLeft < 1000 )
-	{//start zooming in
-		fov = cg_fov.value + (length - timeLeft)/1000*amt;
-	}
-	else
-	{//stay at this FOV
-		fov = cg_fov.value+amt;
-	}
-	return fov;
-}
 /*
 ====================
 CG_CalcFov
@@ -1381,10 +1361,7 @@ static qboolean	CG_CalcFov( void ) {
 			}
 		}
 	} 
-	else if ( (!cg.zoomMode || cg.zoomMode > 2) && (cg.snap->ps.forcePowersActive&(1<<FP_SPEED)) && player->client->ps.forcePowerDuration[FP_SPEED] )//cg.renderingThirdPerson && 
-	{
-		fov_x = CG_ForceSpeedFOV();
-	} else {
+	else {
 		// user selectable
 		if ( cg.overrides.active & CG_OVERRIDE_FOV )
 		{
