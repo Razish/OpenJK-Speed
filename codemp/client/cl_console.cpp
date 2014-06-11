@@ -1,6 +1,3 @@
-//Anything above this #include will be ignored by the compiler
-#include "qcommon/exe_headers.h"
-
 // console.c
 
 #include "client.h"
@@ -339,6 +336,8 @@ void Con_Init (void) {
 
 	con_notifytime = Cvar_Get ("con_notifytime", "3", 0);
 	con_conspeed = Cvar_Get ("scr_conspeed", "3", 0);
+	Cvar_CheckRange (con_conspeed, 1.0f, 100.0f, qfalse);
+
 	con_opacity = Cvar_Get ("con_opacity", "1.0", CVAR_ARCHIVE);
 	con_autoclear = Cvar_Get ("con_autoclear", "1", CVAR_ARCHIVE);
 

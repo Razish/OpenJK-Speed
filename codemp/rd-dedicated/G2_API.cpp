@@ -1,9 +1,3 @@
-// leave this as first line for PCH reasons...
-//
-
-
-//Anything above this #include will be ignored by the compiler
-#include "qcommon/exe_headers.h"
 #include "qcommon/MiniHeap.h"
 
 #include "ghoul2/G2.h"
@@ -574,7 +568,6 @@ int G2API_InitGhoul2Model(CGhoul2Info_v **ghoul2Ptr, const char *fileName, int m
 						  qhandle_t customShader, int modelFlags, int lodBias)
 {
 	int				model;
-	CGhoul2Info		newModel;
 
 	// are we actually asking for a model to be loaded.
 	if (!fileName || !fileName[0])

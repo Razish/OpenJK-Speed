@@ -137,9 +137,9 @@ static LRESULT CALLBACK ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	case WM_CTLCOLORSTATIC:
 		if ( ( HWND ) lParam == s_wcd.hwndBuffer )
 		{
-			SetBkColor( (HDC)wParam, RGB( 255, 174, 201 ) );
-			SetTextColor( (HDC)wParam, RGB( 163, 73, 164 ) );
-			return ( long ) s_wcd.hbrEditBackground;
+			SetBkColor( ( HDC ) wParam, RGB( 255, 174, 201 ) );
+			SetTextColor( ( HDC ) wParam, RGB( 163, 73, 164 ) );
+			return ( LRESULT ) s_wcd.hbrEditBackground;
 		}
 		else if ( ( HWND ) lParam == s_wcd.hwndErrorBox )
 		{
@@ -153,7 +153,7 @@ static LRESULT CALLBACK ConWndProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 				SetBkColor( (HDC)wParam, RGB( 255, 174, 201 ) );
 				SetTextColor( ( HDC ) wParam, RGB( 0x00, 0x00, 0x00 ) );
 			}
-			return ( long ) s_wcd.hbrErrorBackground;
+			return ( LRESULT ) s_wcd.hbrErrorBackground;
 		}
 		return FALSE;
 		break;
@@ -416,7 +416,7 @@ void Sys_CreateConsole( void )
 												g_wv.hInstance, NULL );
 	SendMessage( s_wcd.hwndBuffer, WM_SETFONT, ( WPARAM ) s_wcd.hfBufferFont, 0 );
 
-	s_wcd.SysInputLineWndProc = ( WNDPROC ) SetWindowLongPtr( s_wcd.hwndInputLine, GWLP_WNDPROC, ( long ) InputLineWndProc );
+	s_wcd.SysInputLineWndProc = ( WNDPROC ) SetWindowLongPtr( s_wcd.hwndInputLine, GWLP_WNDPROC, ( LONG_PTR ) InputLineWndProc );
 	SendMessage( s_wcd.hwndInputLine, WM_SETFONT, ( WPARAM ) s_wcd.hfBufferFont, 0 );
 	SendMessage( s_wcd.hwndBuffer, EM_LIMITTEXT, ( WPARAM ) 0x7fff, 0 );
 

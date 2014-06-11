@@ -3414,6 +3414,26 @@ void Leaving_EditField(itemDef_t *item)
 	}
 }
 
+#ifdef _UI
+qboolean Item_TextField_HandleKey( itemDef_t *item, int key );
+void Item_TextField_Paste( itemDef_t *item ) {
+	int		pasteLen, i;
+	char	buff[2048] = { 0 };
+
+	trap->GetClipboardData( buff, sizeof(buff) );
+
+	if ( !*buff ) {
+		return;
+	}
+
+	// send as if typed, so insert / overstrike works properly
+	pasteLen = strlen( buff );
+	for ( i = 0; i < pasteLen; i++ ) {
+		Item_TextField_HandleKey( item, buff[i]|K_CHAR_FLAG );
+	}
+}
+#endif
+
 qboolean Item_TextField_HandleKey(itemDef_t *item, int key) {
 	char buff[2048];
 	int len;
@@ -3430,6 +3450,13 @@ qboolean Item_TextField_HandleKey(itemDef_t *item, int key) {
 		}
 		if ( key & K_CHAR_FLAG ) {
 			key &= ~K_CHAR_FLAG;
+
+#ifdef _UI
+			if ( key == 'v' - 'a' + 1 ) {	// ctrl-v is paste
+				Item_TextField_Paste( item );
+				return qtrue;
+			}
+#endif
 
 			if (key == 'h' - 'a' + 1 )	{	// ctrl-h is backspace
 				if ( item->cursorPos > 0 ) {
@@ -4771,7 +4798,6 @@ static const char *g_bindCommands[] = {
 	"+button2",
 	"+force_drain",
 	"+force_grip",
-	"+force_jump",
 	"+force_lightning",
 	"+forward",
 	"+left",
@@ -4800,6 +4826,7 @@ static const char *g_bindCommands[] = {
 	"force_forcepowerother",
 	"force_heal",
 	"force_healother",
+	"force_protect",
 	"force_pull",
 	"force_rage",
 	"force_seeing",
@@ -4823,6 +4850,7 @@ static const char *g_bindCommands[] = {
 	"use_seeker",
 	"use_sentry",
 	"voicechat",
+	"weapnext",
 	"weapon 1",
 	"weapon 10",
 	"weapon 11",
@@ -4836,6 +4864,8 @@ static const char *g_bindCommands[] = {
 	"weapon 7",
 	"weapon 8",
 	"weapon 9",
+	"weapprev",
+	"zoom"
 };
 
 #define g_bindCount ARRAY_LEN(g_bindCommands)

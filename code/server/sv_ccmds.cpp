@@ -41,25 +41,6 @@ These commands can only be entered from stdin or by a remote operator datagram
 
 qboolean qbLoadTransition = qfalse;
 
-/*
-==================
-SV_SetPlayer
-
-Returns the player
-==================
-*/
-static client_t *SV_SetPlayer( void ) {
-	client_t	*cl;
-
-	cl = &svs.clients[0];
-	if ( !cl->state ) {
-		Com_Printf( "Client is not active\n" );
-		return NULL;
-	}
-	return cl;
-}
-
-
 //=========================================================
 // don't call this directly, it should only be called from SV_Map_f() or SV_MapTransition_f()
 //
@@ -301,6 +282,9 @@ static void SV_Map_f( void )
 		// then cheats will be allowed
 		Cvar_Set( "helpUsObi", cheat ? "1" : "0" );
 	}
+#ifdef JK2_MODE
+	Cvar_Set( "cg_missionstatusscreen", "0" );
+#endif
 }
 
 /*
@@ -443,13 +427,14 @@ static void SV_DumpUser_f( void ) {
 		return;
 	}
 
-	if ( Cmd_Argc() != 2 ) {
-		Com_Printf ("Usage: info <userid>\n");
+	if ( Cmd_Argc() != 1 ) {
+		Com_Printf ("Usage: info\n");
 		return;
 	}
 
-	cl = SV_SetPlayer();
-	if ( !cl ) {
+	cl = &svs.clients[0];
+	if ( !cl->state ) {
+		Com_Printf("Client is not active\n");
 		return;
 	}
 
